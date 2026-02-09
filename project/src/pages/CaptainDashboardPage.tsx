@@ -103,6 +103,8 @@ function SidebarItem({
   );
 }
 
+const MODAL_CLOSE_DELAY_MS = 1500;
+
 export default function CaptainDashboardPage({
   onNavigate,
 }: {
@@ -452,7 +454,7 @@ export default function CaptainDashboardPage({
       setTimeout(() => {
         setShowScheduleModal(false);
         setScheduleSuccess(null);
-      }, 1500);
+      }, MODAL_CLOSE_DELAY_MS);
     } catch {
       setScheduleError('Network error. Please try again.');
     } finally {

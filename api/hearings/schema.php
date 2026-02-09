@@ -19,5 +19,7 @@ function api_ensure_hearing_schema(mysqli $conn): void
         FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
-    $conn->query($sql);
+    if (!$conn->query($sql)) {
+        error_log("Failed to create hearing_schedules table: " . $conn->error);
+    }
 }
