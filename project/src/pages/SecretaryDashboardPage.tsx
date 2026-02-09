@@ -1357,7 +1357,7 @@ export default function SecretaryDashboardPage({
                   </div>
                 )}
               </div>
-            ) : (
+            ) : activeView === 'complaints' ? (
               <>
                 <div className="mb-5">
                   <h1 className="text-2xl font-bold text-gray-900">Complaint Reports</h1>
