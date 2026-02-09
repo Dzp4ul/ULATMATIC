@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
-import { FileDropzone } from '../components/FileDropzone';
 
 type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
 
