@@ -34,6 +34,21 @@ type ComplaintRow = {
   created_at?: string | null;
 };
 
+type HearingRow = {
+  id: number;
+  complaint_id: number;
+  scheduled_date: string;
+  scheduled_time: string;
+  location: string;
+  notes?: string | null;
+  status: string;
+  tracking_number?: string | null;
+  case_number?: string | null;
+  complaint_title: string;
+  complaint_type: string;
+  created_at?: string | null;
+};
+
 function StatCard({
   title,
   value,
@@ -162,6 +177,9 @@ export default function ResidentDashboardPage({
   const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
   const [complaintsError, setComplaintsError] = useState<string | null>(null);
+  const [hearings, setHearings] = useState<HearingRow[]>([]);
+  const [hearingsLoading, setHearingsLoading] = useState(false);
+  const [hearingsError, setHearingsError] = useState<string | null>(null);
   const evidenceInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -347,6 +365,37 @@ export default function ResidentDashboardPage({
     if (activeView !== 'my_complaints') return;
     void loadComplaints();
   }, [activeView, loadComplaints]);
+
+  const loadHearings = useCallback(async () => {
+    if (!residentId) {
+      setHearingsError('Resident session not found. Please sign in again.');
+      setHearings([]);
+      return;
+    }
+
+    setHearingsError(null);
+    setHearingsLoading(true);
+    try {
+      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php?resident_id=${residentId}`);
+      const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
+      if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
+        setHearingsError(data.error ?? 'Failed to load hearing schedules');
+        setHearings([]);
+        return;
+      }
+      setHearings(data.hearings);
+    } catch {
+      setHearingsError('Network error. Please try again.');
+      setHearings([]);
+    } finally {
+      setHearingsLoading(false);
+    }
+  }, [residentId]);
+
+  useEffect(() => {
+    if (activeView !== 'hearing_schedules') return;
+    void loadHearings();
+  }, [activeView, loadHearings]);
 
   const stats = useMemo(
     () => [
@@ -1257,6 +1306,56 @@ export default function ResidentDashboardPage({
                               >
                                 View
                               </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : activeView === 'hearing_schedules' ? (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">My Hearing Schedules</div>
+                    <div className="text-xs text-gray-500">View scheduled hearings for your complaints.</div>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-700">{hearings.length}</div>
+                </div>
+
+                {hearingsError ? (
+                  <div className="p-6 text-sm text-red-700">{hearingsError}</div>
+                ) : hearingsLoading ? (
+                  <div className="p-6 text-sm text-gray-600">Loading…</div>
+                ) : hearings.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-600">No hearing schedules found yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+                        <tr>
+                          <th className="px-5 py-3">Case #</th>
+                          <th className="px-5 py-3">Complaint Title</th>
+                          <th className="px-5 py-3">Date</th>
+                          <th className="px-5 py-3">Time</th>
+                          <th className="px-5 py-3">Location</th>
+                          <th className="px-5 py-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {hearings.map((row) => (
+                          <tr key={row.id} className="hover:bg-gray-50">
+                            <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
+                            <td className="px-5 py-3 text-gray-700">
+                              <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                              <div className="text-xs text-gray-500">{row.complaint_type}</div>
+                            </td>
+                            <td className="px-5 py-3 text-gray-700">{row.scheduled_date}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.scheduled_time}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.location}</td>
+                            <td className="px-5 py-3">
+                              <StatusBadge status={row.status} />
                             </td>
                           </tr>
                         ))}

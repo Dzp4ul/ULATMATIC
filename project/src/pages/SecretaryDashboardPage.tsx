@@ -38,6 +38,22 @@ type ComplaintRow = {
   created_at?: string | null;
 };
 
+type HearingRow = {
+  id: number;
+  complaint_id: number;
+  scheduled_date: string;
+  scheduled_time: string;
+  location: string;
+  notes?: string | null;
+  status: string;
+  tracking_number?: string | null;
+  case_number?: string | null;
+  complaint_title: string;
+  complaint_type: string;
+  resident_id: number;
+  created_at?: string | null;
+};
+
 function StatCard({
   title,
   value,
@@ -104,6 +120,8 @@ function SidebarItem({
   );
 }
 
+const MODAL_CLOSE_DELAY_MS = 1500;
+
 export default function SecretaryDashboardPage({
   onNavigate,
 }: {
@@ -125,7 +143,7 @@ export default function SecretaryDashboardPage({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [complaintsOpen, setComplaintsOpen] = useState(false);
   const [hearingSchedulesOpen, setHearingSchedulesOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail'>(
+  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings'>(
     'dashboard'
   );
   const [residentsTab, setResidentsTab] = useState<'pending' | 'approved'>('pending');
@@ -170,6 +188,18 @@ export default function SecretaryDashboardPage({
   const [complaintActionLoading, setComplaintActionLoading] = useState(false);
   const [complaintActionError, setComplaintActionError] = useState<string | null>(null);
   const [evidencePreview, setEvidencePreview] = useState<{ url: string; isVideo: boolean } | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [hearingDate, setHearingDate] = useState('');
+  const [hearingTime, setHearingTime] = useState('');
+  const [hearingLocation, setHearingLocation] = useState('');
+  const [hearingNotes, setHearingNotes] = useState('');
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [hearings, setHearings] = useState<HearingRow[]>([]);
+  const [hearingsLoading, setHearingsLoading] = useState(false);
+  const [hearingsError, setHearingsError] = useState<string | null>(null);
+  const [hearingStatus, setHearingStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'CANCELLED'>('ALL');
 
   useEffect(() => {
     let active = true;
@@ -364,6 +394,32 @@ export default function SecretaryDashboardPage({
     void loadComplaints();
   }, [activeView, complaintStatus]);
 
+  const loadHearings = useCallback(async () => {
+    if (activeView !== 'hearings') return;
+    setHearingsError(null);
+    setHearingsLoading(true);
+    try {
+      const statusParam = hearingStatus !== 'ALL' ? `?status=${hearingStatus}` : '';
+      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${statusParam}`);
+      const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
+      if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
+        setHearingsError(data.error ?? 'Failed to load hearing schedules');
+        setHearings([]);
+        return;
+      }
+      setHearings(data.hearings);
+    } catch {
+      setHearingsError('Network error. Please try again.');
+      setHearings([]);
+    } finally {
+      setHearingsLoading(false);
+    }
+  }, [activeView, hearingStatus]);
+
+  useEffect(() => {
+    void loadHearings();
+  }, [loadHearings]);
+
   const handleComplaintAction = async (action: 'ACCEPT' | 'DECLINE') => {
     if (!selectedComplaint || complaintActionLoading) return;
     setComplaintActionError(null);
@@ -402,6 +458,61 @@ export default function SecretaryDashboardPage({
       setComplaintActionError('Network error. Please try again.');
     } finally {
       setComplaintActionLoading(false);
+    }
+  };
+
+  const handleScheduleHearing = async () => {
+    if (!selectedComplaint || scheduleLoading) return;
+    
+    setScheduleError(null);
+    setScheduleSuccess(null);
+
+    if (!hearingDate || !hearingTime || !hearingLocation) {
+      setScheduleError('Please fill in all required fields');
+      return;
+    }
+
+    setScheduleLoading(true);
+    try {
+      const res = await fetch('http://localhost/ULATMATIC/api/hearings/schedule.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          complaint_id: selectedComplaint.id,
+          scheduled_date: hearingDate,
+          scheduled_time: hearingTime,
+          location: hearingLocation,
+          notes: hearingNotes,
+        }),
+      });
+
+      const data = (await res.json()) as { ok?: boolean; error?: string; hearing_id?: number };
+      if (!res.ok || !data.ok) {
+        setScheduleError(data.error ?? 'Failed to schedule hearing');
+        return;
+      }
+
+      setScheduleSuccess('Hearing scheduled successfully!');
+      setHearingDate('');
+      setHearingTime('');
+      setHearingLocation('');
+      setHearingNotes('');
+      
+      // Reload hearings list if currently on hearings view
+      if (activeView === 'hearings') {
+        void loadHearings();
+      }
+      
+      setTimeout(() => {
+        setShowScheduleModal(false);
+        setScheduleSuccess(null);
+      }, MODAL_CLOSE_DELAY_MS);
+    } catch {
+      setScheduleError('Network error. Please try again.');
+    } finally {
+      setScheduleLoading(false);
     }
   };
 
@@ -586,6 +697,10 @@ export default function SecretaryDashboardPage({
               <div className="space-y-1 pl-9">
                 <button
                   type="button"
+                  onClick={() => {
+                    setActiveView('hearings');
+                    setHearingStatus('PENDING');
+                  }}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
@@ -593,6 +708,10 @@ export default function SecretaryDashboardPage({
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    setActiveView('hearings');
+                    setHearingStatus('CANCELLED');
+                  }}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
@@ -1227,6 +1346,7 @@ export default function SecretaryDashboardPage({
                         ) : selectedComplaint.status.toUpperCase() === 'IN_PROGRESS' ? (
                           <button
                             type="button"
+                            onClick={() => setShowScheduleModal(true)}
                             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
                           >
                             Schedule Hearing
@@ -1330,7 +1450,84 @@ export default function SecretaryDashboardPage({
                   )}
                 </div>
               </>
-            )}
+            ) : activeView === 'hearings' ? (
+              <>
+                <div className="mb-5">
+                  <h1 className="text-2xl font-bold text-gray-900">Hearing Schedules</h1>
+                  <div className="mt-1 text-sm text-gray-500">
+                    Home <span className="text-gray-400">/</span> Hearing Schedules
+                    {hearingStatus !== 'ALL' ? (
+                      <>
+                        {' '}
+                        <span className="text-gray-400">/</span> {hearingStatus}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                {hearingsError ? (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {hearingsError}
+                  </div>
+                ) : null}
+
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">Hearing Schedules</div>
+                      <div className="text-xs text-gray-500">
+                        {hearingStatus === 'ALL'
+                          ? 'All scheduled hearings for complaints.'
+                          : `Showing ${hearingStatus.toLowerCase()} hearings.`}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-700">{hearings.length}</div>
+                  </div>
+
+                  {hearingsLoading ? (
+                    <div className="p-6 text-sm text-gray-600">Loading…</div>
+                  ) : hearings.length === 0 ? (
+                    <div className="p-6 text-sm text-gray-600">
+                      {hearingStatus === 'ALL'
+                        ? 'No hearing schedules found yet.'
+                        : `No ${hearingStatus.toLowerCase()} hearings found.`}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+                          <tr>
+                            <th className="px-5 py-3">Case #</th>
+                            <th className="px-5 py-3">Complaint Title</th>
+                            <th className="px-5 py-3">Date</th>
+                            <th className="px-5 py-3">Time</th>
+                            <th className="px-5 py-3">Location</th>
+                            <th className="px-5 py-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {hearings.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50">
+                              <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
+                              <td className="px-5 py-3 text-gray-700">
+                                <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                                <div className="text-xs text-gray-500">{row.complaint_type}</div>
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.scheduled_date}</td>
+                              <td className="px-5 py-3 text-gray-700">{row.scheduled_time}</td>
+                              <td className="px-5 py-3 text-gray-700">{row.location}</td>
+                              <td className="px-5 py-3">
+                                <StatusBadge status={row.status} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
           </main>
         </div>
       </div>
@@ -1358,6 +1555,122 @@ export default function SecretaryDashboardPage({
             ) : (
               <img src={idPreview.url} alt={idPreview.label} className="w-full max-h-[70vh] rounded-lg object-contain" />
             )}
+          </div>
+        </div>
+      ) : null}
+      {showScheduleModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              setShowScheduleModal(false);
+              setScheduleError(null);
+              setScheduleSuccess(null);
+            }}
+            aria-label="Close"
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100 p-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Schedule Hearing</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Schedule a hearing for case #{selectedComplaint?.case_number || selectedComplaint?.tracking_number}
+              </p>
+            </div>
+
+            {scheduleError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {scheduleError}
+              </div>
+            ) : null}
+
+            {scheduleSuccess ? (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {scheduleSuccess}
+              </div>
+            ) : null}
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="hearing-date" className="block text-sm font-medium text-gray-700 mb-1">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="hearing-date"
+                  type="date"
+                  value={hearingDate}
+                  onChange={(e) => setHearingDate(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="hearing-time" className="block text-sm font-medium text-gray-700 mb-1">
+                  Time <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="hearing-time"
+                  type="time"
+                  value={hearingTime}
+                  onChange={(e) => setHearingTime(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="hearing-location" className="block text-sm font-medium text-gray-700 mb-1">
+                  Location <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="hearing-location"
+                  type="text"
+                  value={hearingLocation}
+                  onChange={(e) => setHearingLocation(e.target.value)}
+                  placeholder="e.g., Barangay Hall"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="hearing-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  id="hearing-notes"
+                  value={hearingNotes}
+                  onChange={(e) => setHearingNotes(e.target.value)}
+                  placeholder="Additional notes or instructions..."
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScheduleModal(false);
+                  setScheduleError(null);
+                  setScheduleSuccess(null);
+                }}
+                disabled={scheduleLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleScheduleHearing}
+                disabled={scheduleLoading}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/60"
+              >
+                {scheduleLoading ? 'Scheduling...' : 'Schedule Hearing'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
