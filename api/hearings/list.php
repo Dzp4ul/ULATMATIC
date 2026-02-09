@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 $status = isset($_GET['status']) ? strtoupper(trim((string)$_GET['status'])) : null;
+$resident_id = isset($_GET['resident_id']) ? (int)$_GET['resident_id'] : null;
 
 $conn = api_db();
 api_ensure_hearing_schema($conn);
@@ -37,17 +38,29 @@ $sql = "SELECT
     c.tracking_number,
     c.case_number,
     c.complaint_title,
-    c.complaint_type
+    c.complaint_type,
+    c.resident_id
 FROM hearing_schedules h
 INNER JOIN complaints c ON h.complaint_id = c.id";
 
 $params = [];
 $types = '';
+$where_clauses = [];
 
 if ($status && in_array($status, ['PENDING', 'APPROVED', 'CANCELLED'], true)) {
-    $sql .= " WHERE h.status = ?";
+    $where_clauses[] = "h.status = ?";
     $params[] = $status;
     $types .= 's';
+}
+
+if ($resident_id && $resident_id > 0) {
+    $where_clauses[] = "c.resident_id = ?";
+    $params[] = $resident_id;
+    $types .= 'i';
+}
+
+if (!empty($where_clauses)) {
+    $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
 $sql .= " ORDER BY h.scheduled_date ASC, h.scheduled_time ASC";

@@ -37,6 +37,22 @@ type ComplaintRow = {
   created_at?: string | null;
 };
 
+type HearingRow = {
+  id: number;
+  complaint_id: number;
+  scheduled_date: string;
+  scheduled_time: string;
+  location: string;
+  notes?: string | null;
+  status: string;
+  tracking_number?: string | null;
+  case_number?: string | null;
+  complaint_title: string;
+  complaint_type: string;
+  resident_id: number;
+  created_at?: string | null;
+};
+
 function StatCard({
   title,
   value,
@@ -115,7 +131,7 @@ export default function CaptainDashboardPage({
   const [captainId, setCaptainId] = useState<number>(0);
   const [complaintsOpen, setComplaintsOpen] = useState(false);
   const [hearingSchedulesOpen, setHearingSchedulesOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings'>('dashboard');
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -177,6 +193,10 @@ export default function CaptainDashboardPage({
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [hearings, setHearings] = useState<HearingRow[]>([]);
+  const [hearingsLoading, setHearingsLoading] = useState(false);
+  const [hearingsError, setHearingsError] = useState<string | null>(null);
+  const [hearingStatus, setHearingStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'CANCELLED'>('ALL');
 
   useEffect(() => {
     let active = true;
@@ -370,6 +390,32 @@ export default function CaptainDashboardPage({
 
     void loadComplaints();
   }, [activeView, complaintStatus]);
+
+  useEffect(() => {
+    const loadHearings = async () => {
+      if (activeView !== 'hearings') return;
+      setHearingsError(null);
+      setHearingsLoading(true);
+      try {
+        const statusParam = hearingStatus !== 'ALL' ? `?status=${hearingStatus}` : '';
+        const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${statusParam}`);
+        const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
+        if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
+          setHearingsError(data.error ?? 'Failed to load hearing schedules');
+          setHearings([]);
+          return;
+        }
+        setHearings(data.hearings);
+      } catch {
+        setHearingsError('Network error. Please try again.');
+        setHearings([]);
+      } finally {
+        setHearingsLoading(false);
+      }
+    };
+
+    void loadHearings();
+  }, [activeView, hearingStatus]);
 
   const handleComplaintAction = async (action: 'ACCEPT' | 'DECLINE') => {
     if (!selectedComplaint || complaintActionLoading) return;
@@ -642,6 +688,10 @@ export default function CaptainDashboardPage({
               <div className="space-y-1 pl-9">
                 <button
                   type="button"
+                  onClick={() => {
+                    setActiveView('hearings');
+                    setHearingStatus('PENDING');
+                  }}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
@@ -649,6 +699,10 @@ export default function CaptainDashboardPage({
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    setActiveView('hearings');
+                    setHearingStatus('CANCELLED');
+                  }}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
@@ -1377,7 +1431,84 @@ export default function CaptainDashboardPage({
                   )}
                 </div>
               </>
-            )}
+            ) : activeView === 'hearings' ? (
+              <>
+                <div className="mb-5">
+                  <h1 className="text-2xl font-bold text-gray-900">Hearing Schedules</h1>
+                  <div className="mt-1 text-sm text-gray-500">
+                    Home <span className="text-gray-400">/</span> Hearing Schedules
+                    {hearingStatus !== 'ALL' ? (
+                      <>
+                        {' '}
+                        <span className="text-gray-400">/</span> {hearingStatus}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+
+                {hearingsError ? (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {hearingsError}
+                  </div>
+                ) : null}
+
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">Hearing Schedules</div>
+                      <div className="text-xs text-gray-500">
+                        {hearingStatus === 'ALL'
+                          ? 'All scheduled hearings for complaints.'
+                          : `Showing ${hearingStatus.toLowerCase()} hearings.`}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-700">{hearings.length}</div>
+                  </div>
+
+                  {hearingsLoading ? (
+                    <div className="p-6 text-sm text-gray-600">Loading…</div>
+                  ) : hearings.length === 0 ? (
+                    <div className="p-6 text-sm text-gray-600">
+                      {hearingStatus === 'ALL'
+                        ? 'No hearing schedules found yet.'
+                        : `No ${hearingStatus.toLowerCase()} hearings found.`}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+                          <tr>
+                            <th className="px-5 py-3">Case #</th>
+                            <th className="px-5 py-3">Complaint Title</th>
+                            <th className="px-5 py-3">Date</th>
+                            <th className="px-5 py-3">Time</th>
+                            <th className="px-5 py-3">Location</th>
+                            <th className="px-5 py-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {hearings.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50">
+                              <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
+                              <td className="px-5 py-3 text-gray-700">
+                                <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                                <div className="text-xs text-gray-500">{row.complaint_type}</div>
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.scheduled_date}</td>
+                              <td className="px-5 py-3 text-gray-700">{row.scheduled_time}</td>
+                              <td className="px-5 py-3 text-gray-700">{row.location}</td>
+                              <td className="px-5 py-3">
+                                <StatusBadge status={row.status} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : null}
           </main>
         </div>
       </div>
