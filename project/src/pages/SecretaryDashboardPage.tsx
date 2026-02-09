@@ -394,31 +394,31 @@ export default function SecretaryDashboardPage({
     void loadComplaints();
   }, [activeView, complaintStatus]);
 
-  useEffect(() => {
-    const loadHearings = async () => {
-      if (activeView !== 'hearings') return;
-      setHearingsError(null);
-      setHearingsLoading(true);
-      try {
-        const statusParam = hearingStatus !== 'ALL' ? `?status=${hearingStatus}` : '';
-        const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${statusParam}`);
-        const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
-        if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
-          setHearingsError(data.error ?? 'Failed to load hearing schedules');
-          setHearings([]);
-          return;
-        }
-        setHearings(data.hearings);
-      } catch {
-        setHearingsError('Network error. Please try again.');
+  const loadHearings = useCallback(async () => {
+    if (activeView !== 'hearings') return;
+    setHearingsError(null);
+    setHearingsLoading(true);
+    try {
+      const statusParam = hearingStatus !== 'ALL' ? `?status=${hearingStatus}` : '';
+      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${statusParam}`);
+      const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
+      if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
+        setHearingsError(data.error ?? 'Failed to load hearing schedules');
         setHearings([]);
-      } finally {
-        setHearingsLoading(false);
+        return;
       }
-    };
-
-    void loadHearings();
+      setHearings(data.hearings);
+    } catch {
+      setHearingsError('Network error. Please try again.');
+      setHearings([]);
+    } finally {
+      setHearingsLoading(false);
+    }
   }, [activeView, hearingStatus]);
+
+  useEffect(() => {
+    void loadHearings();
+  }, [loadHearings]);
 
   const handleComplaintAction = async (action: 'ACCEPT' | 'DECLINE') => {
     if (!selectedComplaint || complaintActionLoading) return;
@@ -499,6 +499,11 @@ export default function SecretaryDashboardPage({
       setHearingTime('');
       setHearingLocation('');
       setHearingNotes('');
+      
+      // Reload hearings list if currently on hearings view
+      if (activeView === 'hearings') {
+        void loadHearings();
+      }
       
       setTimeout(() => {
         setShowScheduleModal(false);
