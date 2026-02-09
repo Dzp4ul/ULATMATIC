@@ -1,7 +1,5 @@
 import {
   AlertCircle,
-  Camera,
-  ChevronDown,
   FileCheck,
   FileText,
   FolderCheck,
@@ -13,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
+import { FileDropzone } from '../components/FileDropzone';
 
 type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
 
@@ -113,9 +112,8 @@ export default function ChiefDashboardPage({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [incidentStatus, setIncidentStatus] = useState<IncidentStatus>('PENDING');
   const [incidents, setIncidents] = useState<IncidentRow[]>([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
@@ -218,17 +216,6 @@ export default function ChiefDashboardPage({
     setProfilePhotoPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [profilePhotoFile]);
-
-  useEffect(() => {
-    if (!profileMenuOpen) return;
-    const handler = (event: MouseEvent) => {
-      if (!profileMenuRef.current) return;
-      if (event.target instanceof Node && profileMenuRef.current.contains(event.target)) return;
-      setProfileMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [profileMenuOpen]);
 
   useEffect(() => {
     const loadIncidents = async () => {
@@ -406,6 +393,12 @@ export default function ChiefDashboardPage({
               onClick={() => setActiveView('dashboard')}
             />
             <SidebarItem
+              label="Profile Settings"
+              icon={<User className="h-5 w-5" />}
+              active={activeView === 'profile'}
+              onClick={() => setActiveView('profile')}
+            />
+            <SidebarItem
               label="Incident Reports"
               icon={<FileText className="h-5 w-5" />}
               active={activeView === 'incidents' && incidentStatus === 'PENDING'}
@@ -442,6 +435,22 @@ export default function ChiefDashboardPage({
               }}
             />
           </nav>
+
+          <div className="mt-auto px-4 pb-6 pt-6">
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('ulatmatic_chief');
+                onNavigate('/');
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10"
+            >
+              <span className="text-white/80">
+                <LogOut className="h-5 w-5" />
+              </span>
+              <span>Logout</span>
+            </button>
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -465,68 +474,19 @@ export default function ChiefDashboardPage({
                 />
               </div>
 
-              <div className="relative" ref={profileMenuRef}>
+              <div className="flex items-center gap-3">
+                <div className="hidden text-sm font-semibold text-white sm:block">{chiefName || 'Chief'}</div>
                 <button
                   type="button"
-                  onClick={() => setProfileMenuOpen((v) => !v)}
-                  className="flex items-center gap-3 rounded-full bg-white/10 px-3 py-1.5 text-left text-white hover:bg-white/15"
+                  onClick={() => setActiveView('profile')}
+                  className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/20"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/20">
-                    {profilePhotoUrl ? (
-                      <img src={profilePhotoUrl} alt="Chief" className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-4 w-4 text-white/80" />
-                    )}
-                  </div>
-                  <div className="hidden sm:block">
-                    <div className="text-sm font-semibold leading-tight">{chiefName || 'Chief Barangay'}</div>
-                    <div className="text-xs text-white/70">Incident Officer</div>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-white/80 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                  {profilePhotoUrl ? (
+                    <img src={profilePhotoUrl} alt="Chief" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-4 w-4 text-white/80" />
+                  )}
                 </button>
-
-                {profileMenuOpen ? (
-                  <div className="absolute right-0 mt-3 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
-                    <div className="flex items-center gap-3 px-4 py-4">
-                      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                        {profilePhotoUrl ? (
-                          <img src={profilePhotoUrl} alt="Chief" className="h-full w-full object-cover" />
-                        ) : (
-                          <User className="h-5 w-5 text-gray-400" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">{chiefName || 'Chief Barangay'}</div>
-                        <div className="text-xs text-gray-500">{profileEmail || 'Chief Account'}</div>
-                        <div className="text-xs text-gray-400">Incident Officer</div>
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveView('profile');
-                          setProfileMenuOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                      >
-                        <User className="h-4 w-4" />
-                        My Profile
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.removeItem('ulatmatic_chief');
-                          onNavigate('/');
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </header>
@@ -548,14 +508,29 @@ export default function ChiefDashboardPage({
                 </section>
               </>
             ) : activeView === 'profile' ? (
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-                  <p className="text-sm text-gray-500">Manage your personal information and account settings.</p>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Profile Settings</h2>
+                    <p className="text-sm text-gray-600">Update your profile details and photo.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                      {profilePreviewUrl ? (
+                        <img src={profilePreviewUrl} alt="Profile" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-7 w-7 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{chiefName || 'Chief Barangay'}</div>
+                      <div className="text-xs text-gray-500">Incident Officer</div>
+                    </div>
+                  </div>
                 </div>
 
                 <form
-                  className="space-y-6"
+                  className="mt-6 space-y-5"
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!chiefId) {
@@ -572,6 +547,7 @@ export default function ChiefDashboardPage({
                       fd.append('chief_name', profileName.trim());
                       fd.append('chief_email', profileEmail.trim());
                       if (profilePhotoFile) fd.append('profile_photo', profilePhotoFile);
+                      if (removeProfilePhoto) fd.append('remove_photo', '1');
 
                       const res = await fetch('http://localhost/ULATMATIC/api/chief/update_profile.php', {
                         method: 'POST',
@@ -596,6 +572,7 @@ export default function ChiefDashboardPage({
                       setProfilePhoto(user.profile_photo ?? null);
                       setProfilePhotoFile(null);
                       if (profilePhotoInputRef.current) profilePhotoInputRef.current.value = '';
+                      setRemoveProfilePhoto(false);
                       setProfileSuccess('Profile updated successfully.');
                     } catch {
                       setProfileError('Network error. Please try again.');
@@ -604,85 +581,85 @@ export default function ChiefDashboardPage({
                     }
                   }}
                 >
-                  <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-                    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                      <div className="relative mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                        {profilePreviewUrl ? (
-                          <img src={profilePreviewUrl} alt="Profile" className="h-full w-full object-cover" />
-                        ) : (
-                          <User className="h-10 w-10 text-gray-400" />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => profilePhotoInputRef.current?.click()}
-                          className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-lg"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </button>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={profileEmail}
+                        onChange={(e) => setProfileEmail(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+                    <div className="text-sm font-semibold text-gray-900">Profile Photo</div>
+                    {profilePhotoUrl ? (
+                      <div className="mt-3 flex items-center gap-3 text-sm text-gray-600">
+                        <img src={profilePhotoUrl} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
+                        <div>Current profile photo</div>
+                      </div>
+                    ) : null}
+                    <div className="mt-4">
+                      <FileDropzone
+                        label="Upload new profile photo"
+                        file={profilePhotoFile}
+                        previewUrl={profilePhotoPreview}
+                        accept="image/*"
+                        required={false}
+                        inputRef={profilePhotoInputRef}
+                        onChange={(file) => {
+                          setProfilePhotoFile(file);
+                          setRemoveProfilePhoto(false);
+                        }}
+                        onClear={() => {
+                          setProfilePhotoFile(null);
+                          if (profilePhotoInputRef.current) profilePhotoInputRef.current.value = '';
+                        }}
+                      />
+                    </div>
+                    {profilePhotoUrl ? (
+                      <label className="mt-3 flex items-center gap-2 text-sm text-gray-600">
                         <input
-                          ref={profilePhotoInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null;
-                            setProfilePhotoFile(file);
-                          }}
+                          type="checkbox"
+                          checked={removeProfilePhoto}
+                          onChange={(e) => setRemoveProfilePhoto(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300"
                         />
-                      </div>
-                      <div className="mt-4 text-center">
-                        <div className="text-sm font-semibold text-gray-900">{chiefName || 'Chief Barangay'}</div>
-                        <div className="text-xs text-gray-500">Supported formats: JPG, PNG, GIF. Max size 5MB.</div>
-                      </div>
+                        Remove current photo
+                      </label>
+                    ) : null}
+                  </div>
+
+                  {profileError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {profileError}
                     </div>
-
-                    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold text-gray-900">Personal Information</div>
-                        <span className="text-xs text-brand">Edit</span>
-                      </div>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-500 mb-1">Name</label>
-                          <input
-                            type="text"
-                            value={profileName}
-                            onChange={(e) => setProfileName(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-500 mb-1">Email</label>
-                          <input
-                            type="email"
-                            value={profileEmail}
-                            onChange={(e) => setProfileEmail(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                          />
-                        </div>
-                      </div>
-
-                      {profileError ? (
-                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                          {profileError}
-                        </div>
-                      ) : null}
-                      {profileSuccess ? (
-                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                          {profileSuccess}
-                        </div>
-                      ) : null}
-
-                      <div className="mt-6 flex items-center justify-end gap-3">
-                        <button
-                          type="submit"
-                          disabled={profileSaving}
-                          className="inline-flex items-center rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/70"
-                        >
-                          {profileSaving ? 'Saving...' : 'Save Changes'}
-                        </button>
-                      </div>
+                  ) : null}
+                  {profileSuccess ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {profileSuccess}
                     </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="submit"
+                      disabled={profileSaving}
+                      className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/70"
+                    >
+                      {profileSaving ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </div>
                 </form>
               </div>
