@@ -7,6 +7,7 @@ import SecretaryDashboardPage from './pages/SecretaryDashboardPage';
 import CaptainDashboardPage from './pages/CaptainDashboardPage';
 import ChiefDashboardPage from './pages/ChiefDashboardPage';
 import PioDashboardPage from './pages/PioDashboardPage';
+import TrackStatusPage from './pages/TrackStatusPage';
 import { type Route, getRouteFromPathname } from './router';
 
 function App() {
@@ -28,6 +29,10 @@ function App() {
 
   if (route === 'signup') {
     return <SignUpPage onNavigate={navigate} />;
+  }
+
+  if (route === 'track') {
+    return <TrackStatusPage onNavigate={navigate} />;
   }
 
   if (route === 'signin') {
