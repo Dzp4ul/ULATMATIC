@@ -53,7 +53,47 @@ type HearingRow = {
   complaint_type: string;
   resident_id: number;
   created_at?: string | null;
+  attempt_count?: number | null;
 };
+
+function formatPhDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const datePart = d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Manila',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart} | ${timePart}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatPhDateOnly(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 function StatCard({
   title,
@@ -1152,7 +1192,7 @@ export default function SecretaryDashboardPage({
                                       </button>
                                     </div>
                                   </td>
-                                  <td className="px-5 py-3 text-gray-600">{r.created_at ?? '-'}</td>
+                                  <td className="px-5 py-3 text-gray-600">{formatPhDate(r.created_at)}</td>
                                   <td className="px-5 py-3">
                                     <div className="flex items-center justify-end gap-2">
                                       <button
@@ -1333,7 +1373,7 @@ export default function SecretaryDashboardPage({
                         </div>
                         <div>
                           <div className="text-xs text-gray-500">Submitted</div>
-                          <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.created_at ?? '-'}</div>
+                          <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedComplaint.created_at)}</div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500">Resident Name</div>
@@ -1536,7 +1576,7 @@ export default function SecretaryDashboardPage({
                                   <StatusBadge status={row.status} />
                                 )}
                               </td>
-                              <td className="px-5 py-3 text-gray-600">{row.created_at ?? '-'}</td>
+                              <td className="px-5 py-3 text-gray-600">{formatPhDate(row.created_at)}</td>
                               <td className="px-5 py-3 text-center">
                                 {row.has_hearing ? (
                                   <button
@@ -1636,7 +1676,7 @@ export default function SecretaryDashboardPage({
                                 <div className="font-semibold text-gray-900">{row.complaint_title}</div>
                                 <div className="text-xs text-gray-500">{row.complaint_type}</div>
                               </td>
-                              <td className="px-5 py-3 text-gray-700">{row.scheduled_date}</td>
+                              <td className="px-5 py-3 text-gray-700">{formatPhDateOnly(row.scheduled_date)}</td>
                               <td className="px-5 py-3 text-gray-700">{row.scheduled_time}</td>
                               <td className="px-5 py-3 text-gray-700">{row.location}</td>
                               <td className="px-5 py-3">
@@ -1715,7 +1755,7 @@ export default function SecretaryDashboardPage({
                         </div>
                         <div>
                           <div className="text-xs text-gray-500">Scheduled Date</div>
-                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.scheduled_date}</div>
+                          <div className="mt-1 font-semibold text-gray-900">{formatPhDateOnly(selectedHearing.scheduled_date)}</div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500">Scheduled Time</div>
@@ -1729,6 +1769,14 @@ export default function SecretaryDashboardPage({
                           <div className="text-xs text-gray-500">Status</div>
                           <div className="mt-1">
                             <StatusBadge status={selectedHearing.status} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Hearing Attempts</div>
+                          <div className="mt-1 font-semibold text-gray-900">
+                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${(selectedHearing.attempt_count ?? 1) >= 3 ? 'bg-red-100 text-red-700' : (selectedHearing.attempt_count ?? 1) >= 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                              {selectedHearing.attempt_count ?? 1}
+                            </span>
                           </div>
                         </div>
                       </div>

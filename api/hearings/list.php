@@ -39,7 +39,8 @@ $sql = "SELECT
     c.case_number,
     c.complaint_title,
     c.complaint_type,
-    c.resident_id
+    c.resident_id,
+    (SELECT COUNT(*) FROM hearing_schedules h2 WHERE h2.complaint_id = h.complaint_id) AS attempt_count
 FROM hearing_schedules h
 INNER JOIN complaints c ON h.complaint_id = c.id";
 
