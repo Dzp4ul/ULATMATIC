@@ -33,9 +33,7 @@ $witness = trim((string)($_POST['witness'] ?? ''));
 if (
     $residentId <= 0
     || $complaintTitle === ''
-    || $complaintType === ''
     || $complaintCategory === ''
-    || $sitio === ''
     || $description === ''
 ) {
     api_send_json(400, [
@@ -182,6 +180,8 @@ $status = 'PENDING';
 $respondentNameVal = $respondentName !== '' ? $respondentName : null;
 $respondentAddressVal = $respondentAddress !== '' ? $respondentAddress : null;
 $witnessVal = $witness !== '' ? $witness : null;
+$complaintTypeVal = $complaintType !== '' ? $complaintType : null;
+$sitioVal = $sitio !== '' ? $sitio : null;
 
 $stmt = $conn->prepare('INSERT INTO complaints (resident_id, tracking_number, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 if (!$stmt) {
@@ -197,9 +197,9 @@ $stmt->bind_param(
     $residentId,
     $trackingNumber,
     $complaintTitle,
-    $complaintType,
+    $complaintTypeVal,
     $complaintCategory,
-    $sitio,
+    $sitioVal,
     $respondentNameVal,
     $respondentAddressVal,
     $description,

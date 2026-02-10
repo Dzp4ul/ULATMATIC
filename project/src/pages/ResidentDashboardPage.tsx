@@ -49,6 +49,29 @@ type HearingRow = {
   created_at?: string | null;
 };
 
+function formatPhDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const datePart = d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Manila',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart} | ${timePart}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 function StatCard({
   title,
   value,
@@ -158,13 +181,12 @@ export default function ResidentDashboardPage({
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const [complaintTitle, setComplaintTitle] = useState('');
-  const [complaintType, setComplaintType] = useState('');
   const [complaintCategory, setComplaintCategory] = useState('');
   const [complaintSitio, setComplaintSitio] = useState('');
   const [complaintRespondentName, setComplaintRespondentName] = useState('');
   const [complaintRespondentAddress, setComplaintRespondentAddress] = useState('');
   const [complaintDescription, setComplaintDescription] = useState('');
-  const [complaintWitness, setComplaintWitness] = useState('');
+  const [complaintWitnesses, setComplaintWitnesses] = useState<string[]>(['']);
   const [complaintEvidence, setComplaintEvidence] = useState<File | null>(null);
   const [complaintEvidencePreview, setComplaintEvidencePreview] = useState<string | null>(null);
   const [complaintEvidenceIsVideo, setComplaintEvidenceIsVideo] = useState(false);
@@ -873,38 +895,14 @@ export default function ResidentDashboardPage({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 mb-1">Sitio</label>
-                          <select
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
+                          <input
+                            type="text"
                             value={profileSitio}
                             onChange={(e) => setProfileSitio(e.target.value)}
+                            placeholder="Enter your address"
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                          >
-                            <option value="">Select your sitio</option>
-                            <option value="Ahunin">Ahunin</option>
-                            <option value="Alinsangan">Alinsangan</option>
-                            <option value="Baltazar">Baltazar</option>
-                            <option value="Biak na Bato">Biak na Bato</option>
-                            <option value="Bria Phase 1">Bria Phase 1</option>
-                            <option value="Bria Phase2">Bria Phase2</option>
-                            <option value="COC">COC</option>
-                            <option value="Calle Onse / Sampaguita">Calle Onse / Sampaguita</option>
-                            <option value="Crusher Highway">Crusher Highway</option>
-                            <option value="Inner Crusher">Inner Crusher</option>
-                            <option value="Kadayunan">Kadayunan</option>
-                            <option value="Looban 1">Looban 1</option>
-                            <option value="Looban 2">Looban 2</option>
-                            <option value="Manggahan">Manggahan</option>
-                            <option value="Nabus">Nabus</option>
-                            <option value="Old Barrio 2">Old Barrio 2</option>
-                            <option value="Old Barrio Ext">Old Barrio Ext</option>
-                            <option value="Old Barrio NPC">Old Barrio NPC</option>
-                            <option value="Poblacion">Poblacion</option>
-                            <option value="RCD">RCD</option>
-                            <option value="Riverside">Riverside</option>
-                            <option value="Settling">Settling</option>
-                            <option value="Spar">Spar</option>
-                            <option value="Upper">Upper</option>
-                          </select>
+                          />
                         </div>
                       </div>
                     </div>
@@ -991,7 +989,8 @@ export default function ResidentDashboardPage({
                 </form>
               </div>
             ) : activeView === 'file_complaint' ? (
-              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <form
                   className="space-y-4"
                   onSubmit={async (e) => {
@@ -1006,9 +1005,7 @@ export default function ResidentDashboardPage({
 
                     if (
                       !complaintTitle.trim() ||
-                      !complaintType.trim() ||
                       !complaintCategory.trim() ||
-                      !complaintSitio.trim() ||
                       !complaintDescription.trim()
                     ) {
                       setComplaintError('Please fill out all required fields.');
@@ -1020,13 +1017,13 @@ export default function ResidentDashboardPage({
                       const fd = new FormData();
                       fd.append('resident_id', String(residentId));
                       fd.append('complaint_title', complaintTitle.trim());
-                      fd.append('complaint_type', complaintType.trim());
                       fd.append('complaint_category', complaintCategory.trim());
-                      fd.append('sitio', complaintSitio.trim());
+                      if (complaintSitio.trim()) fd.append('sitio', complaintSitio.trim());
                       fd.append('respondent_address', complaintRespondentAddress.trim());
                       fd.append('description', complaintDescription.trim());
                       if (complaintRespondentName.trim()) fd.append('respondent_name', complaintRespondentName.trim());
-                      if (complaintWitness.trim()) fd.append('witness', complaintWitness.trim());
+                      const witnessStr = complaintWitnesses.map(w => w.trim()).filter(Boolean).join(', ');
+                      if (witnessStr) fd.append('witness', witnessStr);
                       if (complaintEvidence) fd.append('evidence', complaintEvidence);
 
                       const res = await fetch('http://localhost/ULATMATIC/api/complaints/submit.php', {
@@ -1050,13 +1047,12 @@ export default function ResidentDashboardPage({
                         setTrackingNumber(data.tracking_number);
                       }
                       setComplaintTitle('');
-                      setComplaintType('');
                       setComplaintCategory('');
                       setComplaintSitio(residentSitio);
                       setComplaintRespondentName('');
                       setComplaintRespondentAddress('');
                       setComplaintDescription('');
-                      setComplaintWitness('');
+                      setComplaintWitnesses(['']);
                       setComplaintEvidence(null);
                     } catch {
                       setComplaintError('Network error. Please try again.');
@@ -1079,15 +1075,15 @@ export default function ResidentDashboardPage({
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Complaint Type <span className="text-red-500">*</span>
+                        Complaint Category <span className="text-red-500">*</span>
                       </label>
                       <select
-                        value={complaintType}
-                        onChange={(e) => setComplaintType(e.target.value)}
+                        value={complaintCategory}
+                        onChange={(e) => setComplaintCategory(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
                       >
                         <option value="" disabled>
-                          Select complaint type
+                          Select complaint category
                         </option>
                         <option value="Public Safety">Public Safety</option>
                         <option value="Road Issues">Road Issues</option>
@@ -1100,34 +1096,22 @@ export default function ResidentDashboardPage({
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Complaint Category <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={complaintCategory}
-                        onChange={(e) => setComplaintCategory(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
-                      >
-                        <option value="" disabled>
-                          Select complaint category
-                        </option>
-                        <option value="Criminal">Criminal</option>
-                        <option value="Civil">Civil</option>
-                        <option value="Others">Others</option>
-                      </select>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Respondent Name (optional)</label>
+                      <input
+                        value={complaintRespondentName}
+                        onChange={(e) => setComplaintRespondentName(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                        placeholder="Person or entity (optional)"
+                      />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Sitio <span className="text-red-500">*</span>
-                      </label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Respondent Sitio (optional)</label>
                       <select
                         value={complaintSitio}
                         onChange={(e) => setComplaintSitio(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
                       >
-                        <option value="" disabled>
-                          Select sitio
-                        </option>
+                        <option value="">Select sitio</option>
                         <option value="Ahunin">Ahunin</option>
                         <option value="Alinsangan">Alinsangan</option>
                         <option value="Baltazar">Baltazar</option>
@@ -1154,32 +1138,41 @@ export default function ResidentDashboardPage({
                         <option value="Upper">Upper</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Respondent Name (optional)</label>
-                      <input
-                        value={complaintRespondentName}
-                        onChange={(e) => setComplaintRespondentName(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
-                        placeholder="Person or entity (optional)"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Respondent Address (optional)</label>
-                      <input
-                        value={complaintRespondentAddress}
-                        onChange={(e) => setComplaintRespondentAddress(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
-                        placeholder="Respondent address"
-                      />
-                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-1">Witness (optional)</label>
-                      <input
-                        value={complaintWitness}
-                        onChange={(e) => setComplaintWitness(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
-                        placeholder="Witness name (optional)"
-                      />
+                      <div className="space-y-2">
+                        {complaintWitnesses.map((w, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              value={w}
+                              onChange={(e) => {
+                                const updated = [...complaintWitnesses];
+                                updated[i] = e.target.value;
+                                setComplaintWitnesses(updated);
+                              }}
+                              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                              placeholder={`Witness name ${i + 1}`}
+                            />
+                            {complaintWitnesses.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setComplaintWitnesses(complaintWitnesses.filter((_, idx) => idx !== i))}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                aria-label="Remove witness"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setComplaintWitnesses([...complaintWitnesses, ''])}
+                          className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
+                        >
+                          <span className="text-lg leading-none">+</span> Add Witness
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1252,6 +1245,27 @@ export default function ResidentDashboardPage({
                   </div>
                 </form>
               </div>
+
+                <div className="w-full lg:w-80 shrink-0">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm sticky top-6">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-blue-800 mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                      Filing Guidelines
+                    </h3>
+                    <ul className="space-y-2.5 text-sm text-blue-700 list-disc list-inside leading-relaxed">
+                      <li>Fill out all required fields marked with <span className="text-red-500 font-bold">*</span>.</li>
+                      <li>Provide a clear and concise complaint title that summarizes the issue.</li>
+                      <li>Select the appropriate complaint category for faster processing.</li>
+                      <li>Include the respondent&apos;s name and sitio if known to help with investigation.</li>
+                      <li>Add witness names if available — use the <strong>+ Add Witness</strong> button to add more.</li>
+                      <li>Write a detailed description of the incident, including date, time, and location.</li>
+                      <li>Attach any supporting evidence (photo or video) if available.</li>
+                      <li>Once submitted, you will receive a tracking number to monitor your complaint.</li>
+                      <li>False or malicious complaints may be subject to appropriate action.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             ) : activeView === 'my_complaints' ? (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
@@ -1275,8 +1289,7 @@ export default function ResidentDashboardPage({
                         <tr>
                           <th className="px-5 py-3">Tracking #</th>
                           <th className="px-5 py-3">Title</th>
-                          <th className="px-5 py-3">Type</th>
-                          <th className="px-5 py-3">Sitio</th>
+                          <th className="px-5 py-3">Category</th>
                           <th className="px-5 py-3">Status</th>
                           <th className="px-5 py-3">Submitted</th>
                           <th className="px-5 py-3 text-center">Action</th>
@@ -1289,12 +1302,11 @@ export default function ResidentDashboardPage({
                             <td className="px-5 py-3 text-gray-700">
                               <div className="font-semibold text-gray-900">{row.complaint_title}</div>
                             </td>
-                            <td className="px-5 py-3 text-gray-700">{row.complaint_type}</td>
-                            <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.complaint_category}</td>
                             <td className="px-5 py-3">
                               <StatusBadge status={row.status} />
                             </td>
-                            <td className="px-5 py-3 text-gray-600">{row.created_at ?? '-'}</td>
+                            <td className="px-5 py-3 text-gray-600">{formatPhDate(row.created_at)}</td>
                             <td className="px-5 py-3 text-center">
                               <button
                                 type="button"
@@ -1463,19 +1475,11 @@ export default function ResidentDashboardPage({
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Submitted</div>
-                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.created_at ?? '-'}</div>
+                  <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedComplaint.created_at)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Complaint Title</div>
                   <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.complaint_title}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Sitio</div>
-                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.sitio}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Type</div>
-                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.complaint_type}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Category</div>
@@ -1486,8 +1490,8 @@ export default function ResidentDashboardPage({
                   <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.respondent_name ?? '-'}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500">Respondent Address</div>
-                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.respondent_address ?? '-'}</div>
+                  <div className="text-xs text-gray-500">Respondent Sitio</div>
+                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.sitio ?? '-'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Witness</div>

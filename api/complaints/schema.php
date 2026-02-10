@@ -12,13 +12,13 @@ function api_ensure_complaint_schema(mysqli $conn): void
         tracking_number VARCHAR(40) NULL,
         case_number VARCHAR(20) NULL,
         complaint_title VARCHAR(255) NOT NULL,
-        complaint_type VARCHAR(120) NOT NULL,
+        complaint_type VARCHAR(120) NULL,
         complaint_category VARCHAR(120) NOT NULL,
-        sitio VARCHAR(120) NOT NULL,
+        sitio VARCHAR(120) NULL,
         respondent_name VARCHAR(255) NULL,
         respondent_address VARCHAR(255) NULL,
         description TEXT NOT NULL,
-        witness VARCHAR(200) NULL,
+        witness VARCHAR(500) NULL,
         evidence_path VARCHAR(255) NULL,
         evidence_mime VARCHAR(120) NULL,
         status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
@@ -112,5 +112,35 @@ function api_ensure_complaint_schema(mysqli $conn): void
 
     if ($needsCaseIndex) {
         $conn->query("ALTER TABLE complaints ADD UNIQUE KEY uniq_case_number (case_number)");
+    }
+
+    // Make complaint_type nullable (no longer required)
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'complaint_type'");
+    if ($res && $res->num_rows > 0) {
+        $col = $res->fetch_assoc();
+        if (($col['Null'] ?? '') !== 'YES') {
+            $conn->query("ALTER TABLE complaints MODIFY COLUMN complaint_type VARCHAR(120) NULL");
+        }
+        $res->free();
+    }
+
+    // Make sitio nullable (no longer required)
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'sitio'");
+    if ($res && $res->num_rows > 0) {
+        $col = $res->fetch_assoc();
+        if (($col['Null'] ?? '') !== 'YES') {
+            $conn->query("ALTER TABLE complaints MODIFY COLUMN sitio VARCHAR(120) NULL");
+        }
+        $res->free();
+    }
+
+    // Increase witness column size for multiple witnesses
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'witness'");
+    if ($res && $res->num_rows > 0) {
+        $col = $res->fetch_assoc();
+        if (strpos(strtolower($col['Type'] ?? ''), '500') === false) {
+            $conn->query("ALTER TABLE complaints MODIFY COLUMN witness VARCHAR(500) NULL");
+        }
+        $res->free();
     }
 }
