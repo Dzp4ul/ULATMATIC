@@ -14,7 +14,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type ComplaintRow = {
@@ -35,6 +35,7 @@ type ComplaintRow = {
   evidence_mime?: string | null;
   status: string;
   created_at?: string | null;
+  has_hearing?: boolean;
 };
 
 type HearingRow = {
@@ -131,7 +132,7 @@ export default function CaptainDashboardPage({
   const [captainId, setCaptainId] = useState<number>(0);
   const [complaintsOpen, setComplaintsOpen] = useState(false);
   const [hearingSchedulesOpen, setHearingSchedulesOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings' | 'hearing_detail'>('dashboard');
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -197,6 +198,30 @@ export default function CaptainDashboardPage({
   const [hearingsLoading, setHearingsLoading] = useState(false);
   const [hearingsError, setHearingsError] = useState<string | null>(null);
   const [hearingStatus, setHearingStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'CANCELLED'>('ALL');
+  const [isReschedule, setIsReschedule] = useState(false);
+  const [selectedHearing, setSelectedHearing] = useState<HearingRow | null>(null);
+
+  // Check if the selected complaint has a hearing when entering complaint_detail view
+  useEffect(() => {
+    if (activeView !== 'complaint_detail' || !selectedComplaint) return;
+    if (selectedComplaint.status.toUpperCase() !== 'IN_PROGRESS') return;
+    
+    let active = true;
+    const checkHearing = async () => {
+      try {
+        const res = await fetch('http://localhost/ULATMATIC/api/hearings/list.php');
+        const data = (await res.json()) as { ok?: boolean; hearings?: HearingRow[] };
+        if (!active || !res.ok || !data.ok || !Array.isArray(data.hearings)) return;
+        
+        const hasHearing = data.hearings.some(h => Number(h.complaint_id) === selectedComplaint.id);
+        if (hasHearing !== selectedComplaint.has_hearing) {
+          setSelectedComplaint(prev => prev ? { ...prev, has_hearing: hasHearing } : prev);
+        }
+      } catch { /* ignore */ }
+    };
+    void checkHearing();
+    return () => { active = false; };
+  }, [activeView, selectedComplaint?.id, selectedComplaint?.status]);
 
   useEffect(() => {
     let active = true;
@@ -379,7 +404,40 @@ export default function CaptainDashboardPage({
           id: typeof row.id === 'number' ? row.id : Number(row.id),
           resident_id: typeof row.resident_id === 'number' ? row.resident_id : Number(row.resident_id),
         }));
-        setComplaints(mapped);
+
+        // Check if any complaints are IN_PROGRESS and fetch hearings to mark which ones have hearings scheduled
+        const hasInProgressComplaints = mapped.some(c => c.status.toUpperCase() === 'IN_PROGRESS');
+        
+        if (hasInProgressComplaints) {
+          try {
+            const hearingsRes = await fetch('http://localhost/ULATMATIC/api/hearings/list.php');
+            const hearingsData = (await hearingsRes.json()) as { ok?: boolean; hearings?: HearingRow[] };
+            
+            if (hearingsRes.ok && hearingsData.ok && Array.isArray(hearingsData.hearings)) {
+              // Create a map of complaint_id -> has_hearing
+              const hearingsMap = new Map<number, boolean>();
+              hearingsData.hearings.forEach(hearing => {
+                if (hearing.complaint_id) {
+                  hearingsMap.set(Number(hearing.complaint_id), true);
+                }
+              });
+              
+              // Mark IN_PROGRESS complaints that have hearings
+              const mappedWithHearings = mapped.map(complaint => ({
+                ...complaint,
+                has_hearing: complaint.status.toUpperCase() === 'IN_PROGRESS' && hearingsMap.has(complaint.id)
+              }));
+              setComplaints(mappedWithHearings);
+            } else {
+              setComplaints(mapped);
+            }
+          } catch {
+            // If hearings fetch fails, just show complaints without hearing info
+            setComplaints(mapped);
+          }
+        } else {
+          setComplaints(mapped);
+        }
       } catch {
         setComplaintsError('Network error. Please try again.');
         setComplaints([]);
@@ -491,16 +549,21 @@ export default function CaptainDashboardPage({
         return;
       }
 
-      setScheduleSuccess('Hearing scheduled successfully!');
+      setScheduleSuccess(isReschedule ? 'Hearing rescheduled successfully!' : 'Hearing scheduled successfully!');
       setHearingDate('');
       setHearingTime('');
       setHearingLocation('');
       setHearingNotes('');
+      setIsReschedule(false);
       
-      // Reload hearings list if currently on hearings view
-      if (activeView === 'hearings') {
-        void loadHearings();
-      }
+      // Mark the complaint as having a hearing in both list and selected
+      setSelectedComplaint(prev => prev ? { ...prev, has_hearing: true } : prev);
+      setComplaints(prev => prev.map(c => 
+        c.id === selectedComplaint.id ? { ...c, has_hearing: true } : c
+      ));
+      
+      // Reload hearings list
+      void loadHearings();
       
       setTimeout(() => {
         setShowScheduleModal(false);
@@ -1232,14 +1295,26 @@ export default function CaptainDashboardPage({
                         </div>
                         <div className="text-xs text-gray-500">Case #{selectedComplaint.case_number ?? '-'}</div>
                       </div>
-                      <StatusBadge status={selectedComplaint.status} />
+                      {selectedComplaint.has_hearing ? (
+                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-700">
+                          Hearing Scheduled
+                        </span>
+                      ) : (
+                        <StatusBadge status={selectedComplaint.status} />
+                      )}
                     </div>
                     <div className="space-y-6 p-6">
                       <div className="grid gap-4 sm:grid-cols-2 text-sm">
                         <div>
                           <div className="text-xs text-gray-500">Status</div>
                           <div className="mt-1">
-                            <StatusBadge status={selectedComplaint.status} />
+                            {selectedComplaint.has_hearing ? (
+                              <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-700">
+                                Hearing Scheduled
+                              </span>
+                            ) : (
+                              <StatusBadge status={selectedComplaint.status} />
+                            )}
                           </div>
                         </div>
                         <div>
@@ -1330,20 +1405,48 @@ export default function CaptainDashboardPage({
                             </button>
                           </>
                         ) : selectedComplaint.status.toUpperCase() === 'IN_PROGRESS' ? (
-                          <button
-                            type="button"
-                            onClick={() => setShowScheduleModal(true)}
-                            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
-                          >
-                            Schedule Hearing
-                          </button>
+                          selectedComplaint.has_hearing ? (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveView('hearings');
+                                  setHearingStatus('ALL');
+                                }}
+                                className="rounded-lg border border-purple-500 bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-100"
+                              >
+                                View Hearing Schedule
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsReschedule(true);
+                                  setShowScheduleModal(true);
+                                }}
+                                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+                              >
+                                Reschedule
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsReschedule(false);
+                                setShowScheduleModal(true);
+                              }}
+                              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+                            >
+                              Schedule Hearing
+                            </button>
+                          )
                         ) : null}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            ) : (
+            ) : activeView === 'complaints' ? (
               <>
                 <div className="mb-5">
                   <h1 className="text-2xl font-bold text-gray-900">Complaint Reports</h1>
@@ -1411,22 +1514,41 @@ export default function CaptainDashboardPage({
                               <td className="px-5 py-3 text-gray-700">{row.complaint_type}</td>
                               <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
                               <td className="px-5 py-3">
-                                <StatusBadge status={row.status} />
+                                {row.has_hearing ? (
+                                  <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-700">
+                                    Hearing Scheduled
+                                  </span>
+                                ) : (
+                                  <StatusBadge status={row.status} />
+                                )}
                               </td>
                               <td className="px-5 py-3 text-gray-600">{row.created_at ?? '-'}</td>
                               <td className="px-5 py-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedComplaint(row);
-                                    setEvidencePreview(null);
-                                    setComplaintActionError(null);
-                                    setActiveView('complaint_detail');
-                                  }}
-                                  className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
-                                >
-                                  View
-                                </button>
+                                {row.has_hearing ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveView('hearings');
+                                      setHearingStatus('ALL');
+                                    }}
+                                    className="rounded-lg border border-purple-500 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100"
+                                  >
+                                    View Hearing
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedComplaint(row);
+                                      setEvidencePreview(null);
+                                      setComplaintActionError(null);
+                                      setActiveView('complaint_detail');
+                                    }}
+                                    className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
+                                  >
+                                    View
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -1489,6 +1611,7 @@ export default function CaptainDashboardPage({
                             <th className="px-5 py-3">Time</th>
                             <th className="px-5 py-3">Location</th>
                             <th className="px-5 py-3">Status</th>
+                            <th className="px-5 py-3 text-center">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -1505,6 +1628,18 @@ export default function CaptainDashboardPage({
                               <td className="px-5 py-3">
                                 <StatusBadge status={row.status} />
                               </td>
+                              <td className="px-5 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedHearing(row);
+                                      setActiveView('hearing_detail');
+                                    }}
+                                    className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
+                                  >
+                                    View
+                                  </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1513,6 +1648,116 @@ export default function CaptainDashboardPage({
                   )}
                 </div>
               </>
+            ) : activeView === 'hearing_detail' ? (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Hearing Schedule Details</h1>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Home <span className="text-gray-400">/</span> Hearing Schedules <span className="text-gray-400">/</span> Details
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('hearings')}
+                    className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Back to List
+                  </button>
+                </div>
+
+                {!selectedHearing ? (
+                  <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">
+                    Select a hearing from the list to view its details.
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 px-6 py-4">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          Case #{selectedHearing.case_number ?? selectedHearing.tracking_number ?? '-'}
+                        </div>
+                        <div className="text-xs text-gray-500">{selectedHearing.complaint_title}</div>
+                      </div>
+                      <StatusBadge status={selectedHearing.status} />
+                    </div>
+                    <div className="space-y-6 p-6">
+                      <div className="grid gap-4 sm:grid-cols-2 text-sm">
+                        <div>
+                          <div className="text-xs text-gray-500">Complaint Title</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.complaint_title}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Complaint Type</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.complaint_type}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Tracking #</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.tracking_number ?? '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Case #</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.case_number ?? '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Scheduled Date</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.scheduled_date}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Scheduled Time</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.scheduled_time}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Location</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedHearing.location}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Status</div>
+                          <div className="mt-1">
+                            <StatusBadge status={selectedHearing.status} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedHearing.notes ? (
+                        <div>
+                          <div className="text-xs text-gray-500">Notes</div>
+                          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 whitespace-pre-line">
+                            {selectedHearing.notes}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const complaintForHearing: ComplaintRow = {
+                              id: Number(selectedHearing.complaint_id),
+                              resident_id: Number(selectedHearing.resident_id),
+                              complaint_title: selectedHearing.complaint_title,
+                              complaint_type: selectedHearing.complaint_type,
+                              complaint_category: '',
+                              sitio: '',
+                              description: '',
+                              status: 'IN_PROGRESS',
+                              tracking_number: selectedHearing.tracking_number,
+                              case_number: selectedHearing.case_number,
+                              has_hearing: true,
+                            };
+                            setSelectedComplaint(complaintForHearing);
+                            setIsReschedule(true);
+                            setShowScheduleModal(true);
+                          }}
+                          className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+                        >
+                          Reschedule
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : null}
           </main>
         </div>
@@ -1558,9 +1803,9 @@ export default function CaptainDashboardPage({
           />
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100 p-6">
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Schedule Hearing</h2>
+              <h2 className="text-xl font-bold text-gray-900">{isReschedule ? 'Reschedule Hearing' : 'Schedule Hearing'}</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Schedule a hearing for case #{selectedComplaint?.case_number || selectedComplaint?.tracking_number}
+                {isReschedule ? 'Reschedule' : 'Schedule'} a hearing for case #{selectedComplaint?.case_number || selectedComplaint?.tracking_number}
               </p>
             </div>
 
@@ -1654,7 +1899,7 @@ export default function CaptainDashboardPage({
                 disabled={scheduleLoading}
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/60"
               >
-                {scheduleLoading ? 'Scheduling...' : 'Schedule Hearing'}
+                {scheduleLoading ? 'Scheduling...' : isReschedule ? 'Reschedule Hearing' : 'Schedule Hearing'}
               </button>
             </div>
           </div>
