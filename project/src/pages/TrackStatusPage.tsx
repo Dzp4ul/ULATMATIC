@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import HomeNav from './home/HomeNav';
+import HomeFooter from './home/HomeFooter';
 
 type TrackedComplaint = {
   tracking_number: string;
@@ -144,7 +145,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
     <div className="min-h-screen bg-gray-50">
       <HomeNav onNavigate={onNavigate} activeRoute="track" />
 
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-brand mb-2">Track Your Report Status</h2>
@@ -156,7 +157,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
 
         {/* Search */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
-          <p className="text-sm text-gray-700 mb-4 text-center">
+          <p className="text-base text-gray-700 mb-4 text-center">
             To track your report, enter your tracking number (e.g. <span className="font-mono font-bold text-brand">CMP-20260210-XXXXXX</span>) in the field below:
           </p>
           <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-center">
@@ -168,20 +169,20 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
                 if (e.key === 'Enter') handleSearch();
               }}
               placeholder="Tracking Number"
-              className="flex-1 max-w-md rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+              className="flex-1 max-w-md rounded-lg border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand"
             />
             <button
               type="button"
               onClick={handleSearch}
               disabled={loading}
-              className="rounded-lg bg-brand px-6 py-3 text-sm font-bold text-white hover:bg-brand/90 disabled:bg-brand/60 transition-colors shadow-sm"
+              className="rounded-lg bg-brand px-6 py-3 text-base font-bold text-white hover:bg-brand/90 disabled:bg-brand/60 transition-colors shadow-sm"
             >
               {loading ? 'Searching...' : 'Check Status'}
             </button>
           </div>
 
           {error ? (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 text-center">
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 text-center">
               {error}
             </div>
           ) : null}
@@ -200,10 +201,6 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
                   <div>
                     <div className="text-xs text-gray-500">Tracking #</div>
                     <div className="mt-1 font-bold text-brand text-lg">{complaint.tracking_number}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Case #</div>
-                    <div className="mt-1 font-semibold text-gray-900">{complaint.case_number ?? '-'}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Complaint Title</div>
@@ -349,29 +346,29 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
 
         {/* Status Guide */}
         <div className="mt-10">
-          <h3 className="text-sm font-bold text-gray-900 mb-4">Status Guide</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Status Guide</h3>
           <ul className="space-y-3">
             <li>
-              <span className="font-bold text-orange-700">Pending</span>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <span className="text-base font-bold text-gray-900">Pending</span>
+              <p className="text-base text-gray-600 mt-0.5">
                 Your complaint has been received and is waiting to be reviewed by barangay officials. No action has been taken yet.
               </p>
             </li>
             <li>
-              <span className="font-bold text-blue-700">In Progress</span>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <span className="text-base font-bold text-gray-900">In Progress</span>
+              <p className="text-base text-gray-600 mt-0.5">
                 Your complaint is being actively investigated. A hearing schedule may be set and you will be notified accordingly.
               </p>
             </li>
             <li>
-              <span className="font-bold text-green-700">Resolved</span>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <span className="text-base font-bold text-gray-900">Resolved</span>
+              <p className="text-base text-gray-600 mt-0.5">
                 Your complaint has been successfully resolved and the case is closed. Thank you for your report.
               </p>
             </li>
             <li>
-              <span className="font-bold text-red-700">Dismissed</span>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <span className="text-base font-bold text-gray-900">Dismissed</span>
+              <p className="text-base text-gray-600 mt-0.5">
                 The complaint has been dismissed by barangay officials after evaluation.
               </p>
             </li>
@@ -379,7 +376,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
         </div>
 
         {/* Helper links */}
-        <div className="mt-10 space-y-4 text-sm text-gray-700">
+        <div className="mt-10 space-y-4 text-base text-gray-700">
           <p>
             No Tracking Number? Please proceed to the{' '}
             <button type="button" onClick={() => onNavigate('/signup')} className="text-blue-600 hover:underline font-medium">
@@ -396,6 +393,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
           </p>
         </div>
       </div>
+      <HomeFooter />
     </div>
   );
 }
