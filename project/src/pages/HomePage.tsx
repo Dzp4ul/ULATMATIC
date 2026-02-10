@@ -40,6 +40,7 @@ export default function HomePage({ onNavigate }: { onNavigate: (to: string) => v
         backgroundPosition={backgrounds[backgroundIndex].position}
         onPrevBackground={prevBackground}
         onNextBackground={nextBackground}
+        onNavigate={onNavigate}
       />
       <HomeCategories />
       <HomeReports />

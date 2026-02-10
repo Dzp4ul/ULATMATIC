@@ -6,11 +6,13 @@ export default function HomeHero({
   backgroundPosition,
   onPrevBackground,
   onNextBackground,
+  onNavigate,
 }: {
   backgroundSrc: string;
   backgroundPosition: string;
   onPrevBackground: () => void;
   onNextBackground: () => void;
+  onNavigate: (to: string) => void;
 }) {
   const [prevSrc, setPrevSrc] = useState<string | null>(null);
   const [currentSrc, setCurrentSrc] = useState(backgroundSrc);
@@ -52,10 +54,10 @@ export default function HomeHero({
             A transparent and efficient system for residents to report incidents and complaints directly to barangay officials. Your voice matters in building a better community.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="bg-brand hover:bg-brand/90 text-white font-semibold px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+            <button onClick={() => onNavigate('/signin')} className="bg-brand hover:bg-brand/90 text-white font-semibold px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
               File a Report
             </button>
-            <button className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-lg border-2 border-gray-300 transition-all">
+            <button onClick={() => onNavigate('/track')} className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-lg border-2 border-gray-300 transition-all">
               Track Report Status
             </button>
           </div>
