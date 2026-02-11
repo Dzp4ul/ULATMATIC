@@ -7,6 +7,7 @@ function api_ensure_incident_schema(mysqli $conn): void
     $sql = "CREATE TABLE IF NOT EXISTS incidents (
         id INT AUTO_INCREMENT PRIMARY KEY,
         resident_id INT NULL,
+        tracking_number VARCHAR(30) NULL,
         incident_type VARCHAR(120) NOT NULL,
         incident_category VARCHAR(120) NOT NULL,
         sitio VARCHAR(120) NOT NULL,
@@ -21,4 +22,10 @@ function api_ensure_incident_schema(mysqli $conn): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     $conn->query($sql);
+
+    // Add tracking_number column if missing (for existing tables)
+    $check = $conn->query("SHOW COLUMNS FROM incidents LIKE 'tracking_number'");
+    if ($check && $check->num_rows === 0) {
+        $conn->query("ALTER TABLE incidents ADD COLUMN tracking_number VARCHAR(30) NULL AFTER resident_id");
+    }
 }

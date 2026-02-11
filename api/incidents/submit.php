@@ -125,10 +125,53 @@ if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
 $conn = api_db();
 api_ensure_incident_schema($conn);
 
+// Generate unique tracking number
+$trackingNumber = null;
+for ($attempt = 0; $attempt < 5; $attempt++) {
+    try {
+        $rand = bin2hex(random_bytes(3));
+    } catch (Throwable $e) {
+        $rand = '';
+    }
+
+    if ($rand === '') {
+        break;
+    }
+
+    $candidate = 'INC-' . date('Ymd') . '-' . strtoupper($rand);
+    $check = $conn->prepare('SELECT id FROM incidents WHERE tracking_number = ? LIMIT 1');
+    if (!$check) {
+        $conn->close();
+        api_send_json(500, [
+            'ok' => false,
+            'error' => 'Tracking check failed',
+        ]);
+    }
+
+    $check->bind_param('s', $candidate);
+    $check->execute();
+    $result = $check->get_result();
+    $exists = $result ? $result->fetch_assoc() : null;
+    $check->close();
+
+    if (!$exists) {
+        $trackingNumber = $candidate;
+        break;
+    }
+}
+
+if ($trackingNumber === null) {
+    $conn->close();
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Failed to generate tracking number',
+    ]);
+}
+
 $status = 'PENDING';
 $witnessVal = $witness !== '' ? $witness : null;
 
-$stmt = $conn->prepare('INSERT INTO incidents (resident_id, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$stmt = $conn->prepare('INSERT INTO incidents (resident_id, tracking_number, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -138,8 +181,9 @@ if (!$stmt) {
 }
 
 $stmt->bind_param(
-    'issssssss',
+    'isssssssss',
     $residentId,
+    $trackingNumber,
     $incidentType,
     $incidentCategory,
     $sitio,
@@ -158,6 +202,7 @@ $conn->close();
 api_send_json(200, [
     'ok' => true,
     'id' => (int)$id,
+    'tracking_number' => $trackingNumber,
     'status' => $status,
     'evidence_path' => $evidencePath,
 ]);

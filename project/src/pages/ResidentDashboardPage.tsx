@@ -34,6 +34,23 @@ type ComplaintRow = {
   created_at?: string | null;
 };
 
+type IncidentRow = {
+  id: number;
+  resident_id: number | null;
+  tracking_number?: string | null;
+  incident_type: string;
+  incident_category: string;
+  sitio: string;
+  description: string;
+  witness?: string | null;
+  evidence_path?: string | null;
+  evidence_mime?: string | null;
+  status: string;
+  created_at?: string | null;
+  resolved_at?: string | null;
+  transferred_at?: string | null;
+};
+
 type HearingRow = {
   id: number;
   complaint_id: number;
@@ -48,6 +65,43 @@ type HearingRow = {
   complaint_type: string;
   created_at?: string | null;
 };
+
+function formatHearingDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatHearingTime(timeStr: string | null | undefined): string {
+  if (!timeStr) return '-';
+  try {
+    const parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      let h = Number(parts[0]);
+      const m = Number(parts[1]);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+    return timeStr;
+  } catch {
+    return timeStr;
+  }
+}
 
 function formatPhDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
@@ -204,6 +258,27 @@ export default function ResidentDashboardPage({
   const [hearingsError, setHearingsError] = useState<string | null>(null);
   const evidenceInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Incident Report state ---
+  const [incidentType, setIncidentType] = useState('');
+  const [incidentCategory, setIncidentCategory] = useState('');
+  const [incidentSitio, setIncidentSitio] = useState('');
+  const [incidentDescription, setIncidentDescription] = useState('');
+  const [incidentWitnesses, setIncidentWitnesses] = useState<string[]>(['']);
+  const [incidentEvidence, setIncidentEvidence] = useState<File | null>(null);
+  const [incidentEvidencePreview, setIncidentEvidencePreview] = useState<string | null>(null);
+  const [incidentEvidenceIsVideo, setIncidentEvidenceIsVideo] = useState(false);
+  const [incidentSubmitting, setIncidentSubmitting] = useState(false);
+  const [incidentError, setIncidentError] = useState<string | null>(null);
+  const [incidentSuccess, setIncidentSuccess] = useState<string | null>(null);
+  const incidentEvidenceInputRef = useRef<HTMLInputElement>(null);
+
+  const [incidents, setIncidents] = useState<IncidentRow[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(false);
+  const [incidentsError, setIncidentsError] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRow | null>(null);
+  const [incidentEvidenceModal, setIncidentEvidenceModal] = useState<{ url: string; isVideo: boolean } | null>(null);
+  const [incidentTrackingNumber, setIncidentTrackingNumber] = useState<string | null>(null);
+
   useEffect(() => {
     let active = true;
     const loadProfile = async () => {
@@ -286,6 +361,24 @@ export default function ResidentDashboardPage({
       active = false;
     };
   }, [onNavigate]);
+
+  // Incident evidence preview
+  useEffect(() => {
+    if (!incidentEvidence) {
+      setIncidentEvidencePreview(null);
+      setIncidentEvidenceIsVideo(false);
+      return;
+    }
+    const url = URL.createObjectURL(incidentEvidence);
+    setIncidentEvidencePreview(url);
+    setIncidentEvidenceIsVideo(incidentEvidence.type.startsWith('video/'));
+    return () => URL.revokeObjectURL(url);
+  }, [incidentEvidence]);
+
+  // Pre-fill sitio when profile loads
+  useEffect(() => {
+    if (residentSitio) setIncidentSitio(residentSitio);
+  }, [residentSitio]);
 
   useEffect(() => {
     if (!complaintEvidence) {
@@ -418,6 +511,40 @@ export default function ResidentDashboardPage({
     if (activeView !== 'hearing_schedules') return;
     void loadHearings();
   }, [activeView, loadHearings]);
+
+  const loadIncidents = useCallback(async () => {
+    if (!residentId) {
+      setIncidentsError('Resident session not found. Please sign in again.');
+      setIncidents([]);
+      return;
+    }
+    setIncidentsError(null);
+    setIncidentsLoading(true);
+    try {
+      const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resident_id: residentId, status: 'ALL' }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; incidents?: IncidentRow[] };
+      if (!res.ok || !data.ok || !Array.isArray(data.incidents)) {
+        setIncidentsError(data.error ?? 'Failed to load incidents');
+        setIncidents([]);
+        return;
+      }
+      setIncidents(data.incidents);
+    } catch {
+      setIncidentsError('Network error. Please try again.');
+      setIncidents([]);
+    } finally {
+      setIncidentsLoading(false);
+    }
+  }, [residentId]);
+
+  useEffect(() => {
+    if (activeView !== 'my_incidents') return;
+    void loadIncidents();
+  }, [activeView, loadIncidents]);
 
   const stats = useMemo(
     () => [
@@ -1363,11 +1490,329 @@ export default function ResidentDashboardPage({
                               <div className="font-semibold text-gray-900">{row.complaint_title}</div>
                               <div className="text-xs text-gray-500">{row.complaint_type}</div>
                             </td>
-                            <td className="px-5 py-3 text-gray-700">{row.scheduled_date}</td>
-                            <td className="px-5 py-3 text-gray-700">{row.scheduled_time}</td>
+                            <td className="px-5 py-3 text-gray-700">{formatHearingDate(row.scheduled_date)}</td>
+                            <td className="px-5 py-3 text-gray-700">{formatHearingTime(row.scheduled_time)}</td>
                             <td className="px-5 py-3 text-gray-700">{row.location}</td>
                             <td className="px-5 py-3">
                               <StatusBadge status={row.status} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : activeView === 'incident_report' ? (
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <form
+                    className="space-y-4"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setIncidentError(null);
+                      setIncidentSuccess(null);
+
+                      if (!residentId) {
+                        setIncidentError('Resident session not found. Please sign in again.');
+                        return;
+                      }
+                      if (!incidentType.trim() || !incidentCategory.trim() || !incidentDescription.trim()) {
+                        setIncidentError('Please fill out all required fields.');
+                        return;
+                      }
+
+                      setIncidentSubmitting(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append('resident_id', String(residentId));
+                        fd.append('incident_type', incidentType.trim());
+                        fd.append('incident_category', incidentCategory.trim());
+                        if (incidentSitio.trim()) fd.append('sitio', incidentSitio.trim());
+                        fd.append('description', incidentDescription.trim());
+                        const witnessStr = incidentWitnesses.map(w => w.trim()).filter(Boolean).join(', ');
+                        if (witnessStr) fd.append('witness', witnessStr);
+                        if (incidentEvidence) fd.append('evidence', incidentEvidence);
+
+                        const res = await fetch('http://localhost/ULATMATIC/api/incidents/submit.php', {
+                          method: 'POST',
+                          body: fd,
+                        });
+
+                        const data = (await res.json()) as { ok?: boolean; error?: string; id?: number; tracking_number?: string };
+                        if (!res.ok || !data.ok) {
+                          setIncidentError(data.error ?? 'Failed to submit incident report');
+                          return;
+                        }
+
+                        setIncidentSuccess('Incident report submitted successfully.');
+                        if (data.tracking_number) {
+                          setIncidentTrackingNumber(data.tracking_number);
+                        }
+                        setIncidentType('');
+                        setIncidentCategory('');
+                        setIncidentSitio(residentSitio);
+                        setIncidentDescription('');
+                        setIncidentWitnesses(['']);
+                        setIncidentEvidence(null);
+                        if (incidentEvidenceInputRef.current) incidentEvidenceInputRef.current.value = '';
+                      } catch {
+                        setIncidentError('Network error. Please try again.');
+                      } finally {
+                        setIncidentSubmitting(false);
+                      }
+                    }}
+                  >
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          Incident Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={incidentType}
+                          onChange={(e) => setIncidentType(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                          <option value="" disabled>Select incident type</option>
+                          <option value="Theft">Theft</option>
+                          <option value="Assault">Assault</option>
+                          <option value="Vandalism">Vandalism</option>
+                          <option value="Traffic Accident">Traffic Accident</option>
+                          <option value="Flooding">Flooding</option>
+                          <option value="Noise Disturbance">Noise Disturbance</option>
+                          <option value="Drug-related">Drug-related</option>
+                          <option value="Domestic Violence">Domestic Violence</option>
+                          <option value="Stray Animals">Stray Animals</option>
+                          <option value="Illegal Construction">Illegal Construction</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">
+                          Incident Category <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={incidentCategory}
+                          onChange={(e) => setIncidentCategory(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                          <option value="" disabled>Select category</option>
+                          <option value="Crime">Crime</option>
+                          <option value="Fire">Fire</option>
+                          <option value="Accident">Accident</option>
+                          <option value="Natural Disaster">Natural Disaster</option>
+                          <option value="Public Disturbance">Public Disturbance</option>
+                          <option value="Health Emergency">Health Emergency</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Location / Sitio</label>
+                        <select
+                          value={incidentSitio}
+                          onChange={(e) => setIncidentSitio(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                        >
+                          <option value="">Select sitio</option>
+                          <option value="Ahunin">Ahunin</option>
+                          <option value="Alinsangan">Alinsangan</option>
+                          <option value="Baltazar">Baltazar</option>
+                          <option value="Biak na Bato">Biak na Bato</option>
+                          <option value="Bria Phase 1">Bria Phase 1</option>
+                          <option value="Bria Phase2">Bria Phase2</option>
+                          <option value="COC">COC</option>
+                          <option value="Calle Onse / Sampaguita">Calle Onse / Sampaguita</option>
+                          <option value="Crusher Highway">Crusher Highway</option>
+                          <option value="Inner Crusher">Inner Crusher</option>
+                          <option value="Kadayunan">Kadayunan</option>
+                          <option value="Looban 1">Looban 1</option>
+                          <option value="Looban 2">Looban 2</option>
+                          <option value="Manggahan">Manggahan</option>
+                          <option value="Nabus">Nabus</option>
+                          <option value="Old Barrio 2">Old Barrio 2</option>
+                          <option value="Old Barrio Ext">Old Barrio Ext</option>
+                          <option value="Old Barrio NPC">Old Barrio NPC</option>
+                          <option value="Poblacion">Poblacion</option>
+                          <option value="RCD">RCD</option>
+                          <option value="Riverside">Riverside</option>
+                          <option value="Settling">Settling</option>
+                          <option value="Spar">Spar</option>
+                          <option value="Upper">Upper</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">Witness (optional)</label>
+                        <div className="space-y-2">
+                          {incidentWitnesses.map((w, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input
+                                value={w}
+                                onChange={(e) => {
+                                  const updated = [...incidentWitnesses];
+                                  updated[i] = e.target.value;
+                                  setIncidentWitnesses(updated);
+                                }}
+                                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                                placeholder={`Witness name ${i + 1}`}
+                              />
+                              {incidentWitnesses.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIncidentWitnesses(incidentWitnesses.filter((_, idx) => idx !== i))}
+                                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                  aria-label="Remove witness"
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setIncidentWitnesses([...incidentWitnesses, ''])}
+                            className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
+                          >
+                            <span className="text-lg leading-none">+</span> Add Witness
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={incidentDescription}
+                        onChange={(e) => setIncidentDescription(e.target.value)}
+                        className="min-h-[120px] w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                        placeholder="Describe what happened, including date, time, and specific location..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Proof / Evidence (image or video)</label>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        ref={incidentEvidenceInputRef}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          setIncidentEvidence(f);
+                        }}
+                        className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand/90"
+                      />
+                      {incidentEvidence ? (
+                        <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIncidentEvidence(null);
+                              if (incidentEvidenceInputRef.current) incidentEvidenceInputRef.current.value = '';
+                            }}
+                            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-xs font-semibold text-gray-600 shadow hover:bg-gray-100"
+                            aria-label="Remove evidence"
+                          >
+                            X
+                          </button>
+                          {incidentEvidencePreview ? (
+                            incidentEvidenceIsVideo ? (
+                              <video src={incidentEvidencePreview} controls className="w-full max-h-64 rounded-lg" />
+                            ) : (
+                              <img src={incidentEvidencePreview} alt="Evidence preview" className="w-full max-h-64 rounded-lg object-contain" />
+                            )
+                          ) : null}
+                          <div className="mt-2 text-xs text-gray-500">Selected: {incidentEvidence.name}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {incidentError ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{incidentError}</div> : null}
+                    {incidentSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{incidentSuccess}</div> : null}
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={incidentSubmitting}
+                        className="inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/60"
+                      >
+                        {incidentSubmitting ? 'Submitting…' : 'Submit Incident Report'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="w-full lg:w-80 shrink-0">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm sticky top-6">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-blue-800 mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                      Incident Reporting Guidelines
+                    </h3>
+                    <ul className="space-y-2.5 text-sm text-blue-700 list-disc list-inside leading-relaxed">
+                      <li>Fill out all required fields marked with <span className="text-red-500 font-bold">*</span>.</li>
+                      <li>Select the correct incident type and category for faster response.</li>
+                      <li>Choose the sitio/location where the incident occurred.</li>
+                      <li>Add witness names if available using the <strong>+ Add Witness</strong> button.</li>
+                      <li>Provide a detailed description including date, time, and circumstances.</li>
+                      <li>Attach photo or video evidence if available.</li>
+                      <li>Submitted reports will be reviewed by barangay officials.</li>
+                      <li>False or malicious reports may be subject to appropriate action.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : activeView === 'my_incidents' ? (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">My Incident Reports</div>
+                    <div className="text-xs text-gray-500">Track submitted incident reports and their status.</div>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-700">{incidents.length}</div>
+                </div>
+
+                {incidentsError ? (
+                  <div className="p-6 text-sm text-red-700">{incidentsError}</div>
+                ) : incidentsLoading ? (
+                  <div className="p-6 text-sm text-gray-600">Loading…</div>
+                ) : incidents.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-600">No incident reports found yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+                        <tr>
+                          <th className="px-5 py-3">Tracking #</th>
+                          <th className="px-5 py-3">Type</th>
+                          <th className="px-5 py-3">Category</th>
+                          <th className="px-5 py-3">Sitio</th>
+                          <th className="px-5 py-3">Status</th>
+                          <th className="px-5 py-3">Submitted</th>
+                          <th className="px-5 py-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {incidents.map((row) => (
+                          <tr key={row.id} className="hover:bg-gray-50">
+                            <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.incident_type}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.incident_category}</td>
+                            <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
+                            <td className="px-5 py-3">
+                              <StatusBadge status={row.status} />
+                            </td>
+                            <td className="px-5 py-3 text-gray-600">{formatPhDate(row.created_at)}</td>
+                            <td className="px-5 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedIncident(row);
+                                  setIncidentEvidenceModal(null);
+                                }}
+                                className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
+                              >
+                                View
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1426,6 +1871,56 @@ export default function ResidentDashboardPage({
                 <button
                   type="button"
                   onClick={() => setTrackingNumber(null)}
+                  className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {incidentTrackingNumber ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIncidentTrackingNumber(null)}
+            aria-label="Close"
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100">
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Incident Report Submitted</h3>
+                  <p className="text-sm text-gray-600 mt-1">Save your tracking number for follow-up.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIncidentTrackingNumber(null)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="mt-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
+                {incidentTrackingNumber}
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncidentTrackingNumber(null);
+                    setActiveView('my_incidents');
+                  }}
+                  className="inline-flex items-center justify-center rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/5"
+                >
+                  View My Incident Reports
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncidentTrackingNumber(null)}
                   className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
                 >
                   Done
@@ -1549,6 +2044,136 @@ export default function ResidentDashboardPage({
               <video src={evidencePreview.url} controls className="w-full max-h-[70vh] rounded-lg" />
             ) : (
               <img src={evidencePreview.url} alt="Evidence" className="w-full max-h-[70vh] rounded-lg object-contain" />
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Incident detail modal */}
+      {selectedIncident ? (() => {
+        const incEvidenceUrl = selectedIncident.evidence_path
+          ? `http://localhost/ULATMATIC/${selectedIncident.evidence_path}`
+          : null;
+        const incIsVideo = Boolean(
+          selectedIncident.evidence_mime
+            ? selectedIncident.evidence_mime.startsWith('video/')
+            : selectedIncident.evidence_path?.match(/\.(mp4|webm|mov)$/i)
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              onClick={() => { setSelectedIncident(null); setIncidentEvidenceModal(null); }}
+              aria-label="Close"
+            />
+            <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-xl border border-gray-100">
+              <div className="p-6 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Incident Report Details</h3>
+                    <p className="text-sm text-gray-600 mt-1">Tracking #{selectedIncident.tracking_number ?? '-'}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedIncident(null); setIncidentEvidenceModal(null); }}
+                    className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Status</div>
+                    <div className="mt-1"><StatusBadge status={selectedIncident.status} /></div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Submitted</div>
+                    <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedIncident.created_at)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Incident Type</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedIncident.incident_type}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Category</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedIncident.incident_category}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Location / Sitio</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedIncident.sitio || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Witness</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedIncident.witness ?? '-'}</div>
+                  </div>
+                  {selectedIncident.resolved_at ? (
+                    <div>
+                      <div className="text-xs text-gray-500">Resolved At</div>
+                      <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedIncident.resolved_at)}</div>
+                    </div>
+                  ) : null}
+                  {selectedIncident.transferred_at ? (
+                    <div>
+                      <div className="text-xs text-gray-500">Transferred At</div>
+                      <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedIncident.transferred_at)}</div>
+                    </div>
+                  ) : null}
+                  <div>
+                    <div className="text-xs text-gray-500">Evidence</div>
+                    <div className="mt-1">
+                      {incEvidenceUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setIncidentEvidenceModal({ url: incEvidenceUrl, isVideo: incIsVideo })}
+                          className="text-brand font-semibold hover:text-brand/90"
+                        >
+                          View Attachment
+                        </button>
+                      ) : (
+                        <span className="font-semibold text-gray-900">None</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500">Description</div>
+                  <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 whitespace-pre-line">
+                    {selectedIncident.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {/* Incident evidence preview modal */}
+      {incidentEvidenceModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIncidentEvidenceModal(null)}
+            aria-label="Close"
+          />
+          <div className="relative w-full max-w-3xl rounded-2xl bg-white shadow-xl border border-gray-100 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-sm font-semibold text-gray-900">Evidence Preview</div>
+              <button
+                type="button"
+                onClick={() => setIncidentEvidenceModal(null)}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+            {incidentEvidenceModal.isVideo ? (
+              <video src={incidentEvidenceModal.url} controls className="w-full max-h-[70vh] rounded-lg" />
+            ) : (
+              <img src={incidentEvidenceModal.url} alt="Evidence" className="w-full max-h-[70vh] rounded-lg object-contain" />
             )}
           </div>
         </div>

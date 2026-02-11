@@ -19,6 +19,7 @@ type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
 type IncidentRow = {
   id: number;
   resident_id: number | null;
+  tracking_number?: string | null;
   incident_type: string;
   incident_category: string;
   sitio: string;
@@ -128,7 +129,7 @@ export default function PioDashboardPage({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'ALL' }),
+        body: JSON.stringify({ status: 'ALL', all: true }),
       });
 
       const data = (await res.json()) as { ok?: boolean; incidents?: IncidentRow[] };
@@ -239,7 +240,7 @@ export default function PioDashboardPage({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ status: incidentStatus }),
+          body: JSON.stringify({ status: incidentStatus, all: true }),
         });
 
         const data = (await res.json()) as { ok?: boolean; error?: string; incidents?: IncidentRow[] };
@@ -717,6 +718,7 @@ export default function PioDashboardPage({
                       <table className="min-w-full text-left text-sm">
                         <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
                           <tr>
+                            <th className="px-5 py-3">Tracking #</th>
                             <th className="px-5 py-3">Type</th>
                             <th className="px-5 py-3">Category</th>
                             <th className="px-5 py-3">Sitio</th>
@@ -734,8 +736,8 @@ export default function PioDashboardPage({
                               : null;
                             return (
                               <tr key={row.id} className="hover:bg-gray-50">
-                                <td className="px-5 py-3 font-semibold text-gray-900">{row.incident_type}</td>
-                                <td className="px-5 py-3 text-gray-700">{row.incident_category}</td>
+                                <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
+                                <td className="px-5 py-3 text-gray-700">{row.incident_type}</td>
                                 <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
                                 <td className="px-5 py-3 text-gray-600">
                                   <div className="line-clamp-2 max-w-xs">{row.description}</div>
