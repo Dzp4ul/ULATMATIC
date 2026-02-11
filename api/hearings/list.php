@@ -33,13 +33,21 @@ $sql = "SELECT
     h.location,
     h.notes,
     h.status,
+    h.resolution_type,
+    h.resolution_method,
+    h.resolution_notes,
+    h.resolved_at,
     h.created_at,
     h.updated_at,
     c.tracking_number,
     c.case_number,
     c.complaint_title,
     c.complaint_type,
+    c.complaint_category,
     c.resident_id,
+    c.respondent_name,
+    c.respondent_address,
+    c.description,
     (SELECT COUNT(*) FROM hearing_schedules h2 WHERE h2.complaint_id = h.complaint_id) AS attempt_count
 FROM hearing_schedules h
 INNER JOIN complaints c ON h.complaint_id = c.id";
@@ -48,10 +56,18 @@ $params = [];
 $types = '';
 $where_clauses = [];
 
-if ($status && in_array($status, ['PENDING', 'APPROVED', 'CANCELLED'], true)) {
+if ($status && in_array($status, ['PENDING', 'APPROVED', 'CANCELLED', 'RESOLVED'], true)) {
     $where_clauses[] = "h.status = ?";
     $params[] = $status;
     $types .= 's';
+}
+
+// Filter for unresolved (no resolution set yet, not RESOLVED status)
+$resolution_filter = isset($_GET['resolution']) ? strtolower(trim((string)$_GET['resolution'])) : null;
+if ($resolution_filter === 'resolved') {
+    $where_clauses[] = "h.resolution_type IS NOT NULL AND h.resolution_type != '' AND h.resolution_type != 'PENDING'";
+} elseif ($resolution_filter === 'unresolved') {
+    $where_clauses[] = "(h.resolution_type IS NULL OR h.resolution_type = '' OR h.resolution_type = 'PENDING')";
 }
 
 if ($resident_id && $resident_id > 0) {

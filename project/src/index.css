@@ -5,3 +5,25 @@
 html {
   overflow-y: scroll;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #kp-report-print,
+  #kp-report-print * {
+    visibility: visible;
+  }
+  #kp-report-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+}

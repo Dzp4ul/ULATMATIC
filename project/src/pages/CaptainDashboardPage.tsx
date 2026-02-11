@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   Camera,
   Calendar,
   ChevronDown,
@@ -11,6 +10,7 @@ import {
   LogOut,
   Menu,
   Search,
+  AlertCircle,
   User,
   Users,
 } from 'lucide-react';
@@ -50,9 +50,24 @@ type HearingRow = {
   case_number?: string | null;
   complaint_title: string;
   complaint_type: string;
+  complaint_category?: string | null;
   resident_id: number;
+  respondent_name?: string | null;
+  respondent_address?: string | null;
+  description?: string | null;
   created_at?: string | null;
   attempt_count?: number | null;
+  resolution_type?: string | null;
+  resolution_method?: string | null;
+  resolution_notes?: string | null;
+  resolved_at?: string | null;
+};
+
+type KpMonthData = {
+  nature: { criminal: number; civil: number; others: number; total: number };
+  settled: { mediation: number; conciliation: number; arbitration: number; total: number };
+  unsettled: { repudiated: number; withdrawn: number; pending: number; dismissed: number; certified: number; referred: number; total: number };
+  savings: number;
 };
 
 function formatPhDate(dateStr: string | null | undefined): string {
@@ -172,7 +187,7 @@ export default function CaptainDashboardPage({
   const [captainId, setCaptainId] = useState<number>(0);
   const [complaintsOpen, setComplaintsOpen] = useState(false);
   const [hearingSchedulesOpen, setHearingSchedulesOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings' | 'hearing_detail'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings' | 'hearing_detail' | 'case_resolutions' | 'case_report'>('dashboard');
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -240,6 +255,20 @@ export default function CaptainDashboardPage({
   const [hearingStatus, setHearingStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'CANCELLED'>('ALL');
   const [isReschedule, setIsReschedule] = useState(false);
   const [selectedHearing, setSelectedHearing] = useState<HearingRow | null>(null);
+  const [showResolutionModal, setShowResolutionModal] = useState(false);
+  const [resolutionType, setResolutionType] = useState('');
+  const [resolutionMethod, setResolutionMethod] = useState('');
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [resolutionLoading, setResolutionLoading] = useState(false);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [kpReportYear, setKpReportYear] = useState(new Date().getFullYear());
+  const [kpMonths, setKpMonths] = useState<Record<number, KpMonthData>>({});
+  const [kpTotals, setKpTotals] = useState<KpMonthData | null>(null);
+  const [kpLoading, setKpLoading] = useState(false);
+  const [caseResolutionsOpen, setCaseResolutionsOpen] = useState(false);
+  const [caseResolutionFilter, setCaseResolutionFilter] = useState<'all' | 'resolved' | 'unresolved'>('all');
+  const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
+  const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
 
   // Check if the selected complaint has a hearing when entering complaint_detail view
   useEffect(() => {
@@ -514,6 +543,80 @@ export default function CaptainDashboardPage({
   useEffect(() => {
     void loadHearings();
   }, [loadHearings]);
+
+  const handleResolution = async () => {
+    if (!selectedHearing || resolutionLoading || !resolutionType) return;
+    setResolutionError(null);
+    setResolutionLoading(true);
+    try {
+      const res = await fetch('http://localhost/ULATMATIC/api/hearings/resolve.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hearing_id: selectedHearing.id,
+          resolution_type: resolutionType,
+          resolution_method: resolutionType === 'SETTLED' ? resolutionMethod : null,
+          resolution_notes: resolutionNotes || null,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setResolutionError(data.error ?? 'Failed to save resolution');
+        return;
+      }
+      setSelectedHearing({ ...selectedHearing, resolution_type: resolutionType, resolution_method: resolutionType === 'SETTLED' ? resolutionMethod : null, resolution_notes: resolutionNotes, resolved_at: new Date().toISOString(), status: resolutionType === 'PENDING' ? 'PENDING' : 'RESOLVED' });
+      setShowResolutionModal(false);
+      setResolutionType('');
+      setResolutionMethod('');
+      setResolutionNotes('');
+      void loadHearings();
+    } catch {
+      setResolutionError('Network error. Please try again.');
+    } finally {
+      setResolutionLoading(false);
+    }
+  };
+
+  const loadKpReport = useCallback(async () => {
+    if (activeView !== 'case_report') return;
+    setKpLoading(true);
+    try {
+      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/kp_report.php?year=${kpReportYear}`);
+      const data = (await res.json()) as { ok?: boolean; months?: Record<number, KpMonthData>; totals?: KpMonthData };
+      if (res.ok && data.ok && data.months && data.totals) {
+        setKpMonths(data.months);
+        setKpTotals(data.totals);
+      }
+    } catch { /* ignore */ }
+    finally { setKpLoading(false); }
+  }, [activeView, kpReportYear]);
+
+  useEffect(() => {
+    void loadKpReport();
+  }, [loadKpReport]);
+
+  const loadCaseResolutions = useCallback(async () => {
+    if (activeView !== 'case_resolutions') return;
+    setCaseResolutionLoading(true);
+    try {
+      const params = caseResolutionFilter !== 'all' ? `?resolution=${caseResolutionFilter}` : '';
+      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${params}`);
+      const data = (await res.json()) as { ok?: boolean; hearings?: HearingRow[] };
+      if (res.ok && data.ok && Array.isArray(data.hearings)) {
+        setCaseResolutionHearings(data.hearings);
+      } else {
+        setCaseResolutionHearings([]);
+      }
+    } catch {
+      setCaseResolutionHearings([]);
+    } finally {
+      setCaseResolutionLoading(false);
+    }
+  }, [activeView, caseResolutionFilter]);
+
+  useEffect(() => {
+    void loadCaseResolutions();
+  }, [loadCaseResolutions]);
 
   const handleComplaintAction = async (action: 'ACCEPT' | 'DECLINE') => {
     if (!selectedComplaint || complaintActionLoading) return;
@@ -818,10 +921,59 @@ export default function CaptainDashboardPage({
                 </button>
               </div>
             ) : null}
-            <SidebarItem label="Case Resolutions" icon={<FolderCheck className="h-5 w-5" />} />
-            <SidebarItem label="Resolved Cases" icon={<FileCheck className="h-5 w-5" />} />
-            <SidebarItem label="Unresolved Cases" icon={<AlertCircle className="h-5 w-5" />} />
-            <SidebarItem label="Case Reports" icon={<FileText className="h-5 w-5" />} />
+            <button
+              type="button"
+              onClick={() => setCaseResolutionsOpen((p) => !p)}
+              className={
+                activeView === 'case_resolutions'
+                  ? 'flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-brand'
+                  : 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10'
+              }
+            >
+              <span className={activeView === 'case_resolutions' ? 'text-brand' : 'text-white/80'}>
+                <FolderCheck className="h-5 w-5" />
+              </span>
+              <span>Case Resolutions</span>
+              {caseResolutionsOpen ? <ChevronUp className="ml-auto h-4 w-4" /> : <ChevronDown className="ml-auto h-4 w-4" />}
+            </button>
+            {caseResolutionsOpen ? (
+              <div className="space-y-1 pl-9">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveView('case_resolutions');
+                    setCaseResolutionFilter('all');
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
+                  <span>All Cases</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveView('case_resolutions');
+                    setCaseResolutionFilter('resolved');
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span>Resolved Cases</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveView('case_resolutions');
+                    setCaseResolutionFilter('unresolved');
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                  <span>Unresolved Cases</span>
+                </button>
+              </div>
+            ) : null}
+            <SidebarItem label="Case Reports" icon={<FileText className="h-5 w-5" />} active={activeView === 'case_report'} onClick={() => setActiveView('case_report')} />
           </nav>
 
           <div className="mt-auto px-4 pb-6 pt-6" />
@@ -1776,7 +1928,51 @@ export default function CaptainDashboardPage({
                         </div>
                       ) : null}
 
+                      {/* Resolution Info */}
+                      {selectedHearing.resolution_type ? (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Case Resolution</div>
+                          <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500">Resolution</div>
+                              <div className="mt-1 font-semibold text-gray-900">{selectedHearing.resolution_type}</div>
+                            </div>
+                            {selectedHearing.resolution_method ? (
+                              <div>
+                                <div className="text-xs text-gray-500">Method</div>
+                                <div className="mt-1 font-semibold text-gray-900">{selectedHearing.resolution_method}</div>
+                              </div>
+                            ) : null}
+                            {selectedHearing.resolved_at ? (
+                              <div>
+                                <div className="text-xs text-gray-500">Resolved At</div>
+                                <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedHearing.resolved_at)}</div>
+                              </div>
+                            ) : null}
+                            {selectedHearing.resolution_notes ? (
+                              <div className="sm:col-span-2">
+                                <div className="text-xs text-gray-500">Resolution Notes</div>
+                                <div className="mt-1 text-gray-700 whitespace-pre-line">{selectedHearing.resolution_notes}</div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResolutionType(selectedHearing.resolution_type ?? '');
+                            setResolutionMethod(selectedHearing.resolution_method ?? '');
+                            setResolutionNotes(selectedHearing.resolution_notes ?? '');
+                            setResolutionError(null);
+                            setShowResolutionModal(true);
+                          }}
+                          className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+                        >
+                          {selectedHearing.resolution_type ? 'Update Resolution' : 'Resolve Case'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -1801,6 +1997,258 @@ export default function CaptainDashboardPage({
                         >
                           Reschedule
                         </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeView === 'case_resolutions' ? (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {caseResolutionFilter === 'resolved' ? 'Resolved Cases' : caseResolutionFilter === 'unresolved' ? 'Unresolved Cases' : 'Case Resolutions'}
+                    </h1>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Home <span className="text-gray-400">/</span> Case Resolutions
+                      {caseResolutionFilter !== 'all' ? (
+                        <>
+                          <span className="text-gray-400"> / </span>
+                          {caseResolutionFilter === 'resolved' ? 'Resolved' : 'Unresolved'}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(['all', 'resolved', 'unresolved'] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setCaseResolutionFilter(f)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                          caseResolutionFilter === f
+                            ? 'bg-brand text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {f === 'all' ? 'All' : f === 'resolved' ? 'Resolved' : 'Unresolved'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                  {caseResolutionLoading ? (
+                    <div className="flex items-center justify-center py-16 text-gray-400">Loading cases...</div>
+                  ) : caseResolutionHearings.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-gray-500">
+                      {caseResolutionFilter === 'resolved' ? 'No resolved cases found.' : caseResolutionFilter === 'unresolved' ? 'No unresolved cases found.' : 'No cases found.'}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[900px] text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50">
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Case #</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Complaint</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Type</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Hearing Date</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Resolution</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Method</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Status</th>
+                            <th className="px-5 py-3 text-center font-semibold text-gray-600">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {caseResolutionHearings.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
+                              <td className="px-5 py-3">
+                                <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.complaint_type}</td>
+                              <td className="px-5 py-3 text-gray-700">{formatPhDateOnly(row.scheduled_date)}</td>
+                              <td className="px-5 py-3">
+                                {row.resolution_type ? (
+                                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    row.resolution_type === 'SETTLED' ? 'bg-emerald-100 text-emerald-700'
+                                    : row.resolution_type === 'DISMISSED' ? 'bg-red-100 text-red-700'
+                                    : row.resolution_type === 'WITHDRAWN' ? 'bg-gray-100 text-gray-600'
+                                    : row.resolution_type === 'PENDING' ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {row.resolution_type}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">UNRESOLVED</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.resolution_method ?? '-'}</td>
+                              <td className="px-5 py-3">
+                                <StatusBadge status={row.status} />
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedHearing(row);
+                                    setActiveView('hearing_detail');
+                                  }}
+                                  className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
+                                >
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : activeView === 'case_report' ? (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 print:hidden">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">KP Compliance Monitoring Report</h1>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Home <span className="text-gray-400">/</span> Case Reports
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={kpReportYear}
+                      onChange={(e) => setKpReportYear(Number(e.target.value))}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+                    >
+                      Print Report
+                    </button>
+                  </div>
+                </div>
+
+                {kpLoading ? (
+                  <div className="flex items-center justify-center py-16 text-gray-400">Loading report...</div>
+                ) : (
+                  <div id="kp-report-print" className="rounded-xl border border-gray-200 bg-white shadow-sm print:shadow-none print:border-none overflow-auto">
+                    <div className="p-6 text-center text-sm leading-relaxed">
+                      <div className="text-xs">Republic of the Philippines</div>
+                      <div className="text-xs">Province of Bulacan</div>
+                      <div className="text-xs">Municipality of Norzagaray</div>
+                      <div className="text-xs font-semibold">Barangay San Mateo</div>
+                      <div className="mt-3 text-sm font-bold uppercase tracking-wide">Katarungang Pambarangay</div>
+                      <div className="text-xs font-semibold">Compliance Monitoring Form</div>
+                      <div className="text-xs text-gray-500 mt-1">Year: {kpReportYear}</div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1100px] border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-300">
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-center font-semibold">Month</th>
+                            <th colSpan={4} className="border border-gray-300 px-2 py-1 text-center font-semibold">Nature of Dispute</th>
+                            <th colSpan={4} className="border border-gray-300 px-2 py-1 text-center font-semibold">Settled Cases</th>
+                            <th colSpan={7} className="border border-gray-300 px-2 py-1 text-center font-semibold">Unsettled Cases</th>
+                            <th rowSpan={2} className="border border-gray-300 px-2 py-2 text-center font-semibold">Est. Gov&apos;t Savings</th>
+                          </tr>
+                          <tr className="bg-gray-50 border-b border-gray-300">
+                            <th className="border border-gray-300 px-1 py-1 text-center">Criminal<br/><span className="text-[10px] text-gray-400">2a.1</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Civil<br/><span className="text-[10px] text-gray-400">2a.2</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Others<br/><span className="text-[10px] text-gray-400">2a.3</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center font-bold">Total<br/><span className="text-[10px] text-gray-400">2a.4</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Mediation<br/><span className="text-[10px] text-gray-400">2b.1</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Conciliation<br/><span className="text-[10px] text-gray-400">2b.2</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Arbitration<br/><span className="text-[10px] text-gray-400">2b.3</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center font-bold">Total<br/><span className="text-[10px] text-gray-400">2b.4</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Repudiated<br/><span className="text-[10px] text-gray-400">2c.1</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Withdrawn<br/><span className="text-[10px] text-gray-400">2c.2</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Pending<br/><span className="text-[10px] text-gray-400">2c.3</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Dismissed<br/><span className="text-[10px] text-gray-400">2c.4</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Certified<br/><span className="text-[10px] text-gray-400">2c.5</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center">Referred<br/><span className="text-[10px] text-gray-400">2c.6</span></th>
+                            <th className="border border-gray-300 px-1 py-1 text-center font-bold">Total<br/><span className="text-[10px] text-gray-400">2c.7</span></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].map((label, idx) => {
+                            const m = kpMonths[idx + 1];
+                            const n = m?.nature ?? { criminal: 0, civil: 0, others: 0, total: 0 };
+                            const s = m?.settled ?? { mediation: 0, conciliation: 0, arbitration: 0, total: 0 };
+                            const u = m?.unsettled ?? { repudiated: 0, withdrawn: 0, pending: 0, dismissed: 0, certified: 0, referred: 0, total: 0 };
+                            const sv = m?.savings ?? 0;
+                            return (
+                              <tr key={label} className="hover:bg-gray-50">
+                                <td className="border border-gray-300 px-2 py-1.5 text-center font-semibold">{label}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{n.criminal || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{n.civil || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{n.others || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{n.total || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{s.mediation || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{s.conciliation || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{s.arbitration || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{s.total || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.repudiated || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.withdrawn || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.pending || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.dismissed || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.certified || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center">{u.referred || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{u.total || '-'}</td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-right">
+                                  {sv > 0 ? `₱${sv.toLocaleString()}` : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {kpTotals ? (
+                            <tr className="bg-gray-100 font-bold">
+                              <td className="border border-gray-300 px-2 py-2 text-center">TOTAL</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.nature.criminal || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.nature.civil || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.nature.others || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.nature.total || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.settled.mediation || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.settled.conciliation || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.settled.arbitration || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.settled.total || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.repudiated || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.withdrawn || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.pending || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.dismissed || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.certified || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.referred || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.total || '-'}</td>
+                              <td className="border border-gray-300 px-2 py-2 text-right">
+                                {kpTotals.savings > 0 ? `₱${kpTotals.savings.toLocaleString()}` : '-'}
+                              </td>
+                            </tr>
+                          ) : null}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="p-6 text-xs text-gray-500">
+                      <div className="italic">*Estimated Government Savings: ₱9,500.00 per settled case</div>
+                      <div className="mt-6 grid gap-8 sm:grid-cols-2 text-sm text-gray-800">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Prepared by:</div>
+                          <div className="border-b border-gray-400 pb-1 font-semibold">{captainName || 'Punong Barangay'}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">Punong Barangay</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Certified by:</div>
+                          <div className="border-b border-gray-400 pb-1 font-semibold">{captainName || 'Punong Barangay'}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">Punong Barangay</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1977,6 +2425,92 @@ export default function CaptainDashboardPage({
             ) : (
               <img src={evidencePreview.url} alt="Evidence" className="w-full max-h-[70vh] rounded-lg object-contain" />
             )}
+          </div>
+        </div>
+      ) : null}
+      {showResolutionModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => { setShowResolutionModal(false); setResolutionError(null); }}
+            aria-label="Close"
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Case Resolution</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Set the resolution for Case #{selectedHearing?.case_number ?? selectedHearing?.tracking_number ?? '-'}
+            </p>
+
+            {resolutionError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{resolutionError}</div>
+            ) : null}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Resolution Type <span className="text-red-500">*</span></label>
+                <select
+                  value={resolutionType}
+                  onChange={(e) => setResolutionType(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="">Select resolution...</option>
+                  <option value="SETTLED">Settled</option>
+                  <option value="REPUDIATED">Repudiated</option>
+                  <option value="WITHDRAWN">Withdrawn</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="DISMISSED">Case Dismissed</option>
+                  <option value="CERTIFIED">Certified to File Action</option>
+                  <option value="REFERRED">Referred to Other Agency</option>
+                </select>
+              </div>
+
+              {resolutionType === 'SETTLED' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Settlement Method <span className="text-red-500">*</span></label>
+                  <select
+                    value={resolutionMethod}
+                    onChange={(e) => setResolutionMethod(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="">Select method...</option>
+                    <option value="MEDIATION">Mediation</option>
+                    <option value="CONCILIATION">Conciliation</option>
+                    <option value="ARBITRATION">Arbitration</option>
+                  </select>
+                </div>
+              ) : null}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <textarea
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  placeholder="Additional notes about the resolution..."
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowResolutionModal(false); setResolutionError(null); }}
+                disabled={resolutionLoading}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResolution}
+                disabled={resolutionLoading || !resolutionType || (resolutionType === 'SETTLED' && !resolutionMethod)}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/60"
+              >
+                {resolutionLoading ? 'Saving...' : 'Save Resolution'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
