@@ -2158,7 +2158,7 @@ export default function SecretaryDashboardPage({
                       <div className="text-xs">Republic of the Philippines</div>
                       <div className="text-xs">Province of Bulacan</div>
                       <div className="text-xs">Municipality of Norzagaray</div>
-                      <div className="text-xs font-semibold">Barangay San Mateo</div>
+                      <div className="text-xs font-semibold">Barangay Bigte</div>
                       <div className="mt-3 text-sm font-bold uppercase tracking-wide">Katarungang Pambarangay</div>
                       <div className="text-xs font-semibold">Compliance Monitoring Form</div>
                       <div className="text-xs text-gray-500 mt-1">Year: {kpReportYear}</div>
