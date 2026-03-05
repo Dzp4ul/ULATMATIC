@@ -143,4 +143,22 @@ function api_ensure_complaint_schema(mysqli $conn): void
         }
         $res->free();
     }
+
+    // Add incident_date column
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'incident_date'");
+    if ($res) {
+        if ($res->num_rows === 0) {
+            $conn->query("ALTER TABLE complaints ADD COLUMN incident_date DATE NULL AFTER description");
+        }
+        $res->free();
+    }
+
+    // Add incident_time column
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'incident_time'");
+    if ($res) {
+        if ($res->num_rows === 0) {
+            $conn->query("ALTER TABLE complaints ADD COLUMN incident_time TIME NULL AFTER incident_date");
+        }
+        $res->free();
+    }
 }

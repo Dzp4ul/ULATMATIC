@@ -59,6 +59,8 @@ $appendComplaint = static function (array $row) use (&$complaints): void {
         'respondent_name' => $row['respondent_name'] ?? null,
         'respondent_address' => $row['respondent_address'] ?? null,
         'description' => (string)($row['description'] ?? ''),
+        'incident_date' => $row['incident_date'] ?? null,
+        'incident_time' => $row['incident_time'] ?? null,
         'witness' => $row['witness'] ?? null,
         'evidence_path' => $row['evidence_path'] ?? null,
         'evidence_mime' => $row['evidence_mime'] ?? null,
@@ -68,7 +70,7 @@ $appendComplaint = static function (array $row) use (&$complaints): void {
 };
 if ($all) {
     if ($status !== '' && $status !== 'ALL') {
-        $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.status = ? ORDER BY c.created_at DESC');
+        $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.status = ? ORDER BY c.created_at DESC');
         if (!$stmt) {
             $conn->close();
             api_send_json(500, [
@@ -88,7 +90,7 @@ if ($all) {
 
         $stmt->close();
     } else {
-        $result = $conn->query('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id ORDER BY c.created_at DESC');
+        $result = $conn->query('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id ORDER BY c.created_at DESC');
         if (!$result) {
             $conn->close();
             api_send_json(500, [
@@ -104,7 +106,7 @@ if ($all) {
         $result->free();
     }
 } elseif ($status !== '' && $status !== 'ALL') {
-    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? AND c.status = ? ORDER BY c.created_at DESC');
+    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? AND c.status = ? ORDER BY c.created_at DESC');
     if (!$stmt) {
         $conn->close();
         api_send_json(500, [
@@ -124,7 +126,7 @@ if ($all) {
 
     $stmt->close();
 } else {
-    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? ORDER BY c.created_at DESC');
+    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? ORDER BY c.created_at DESC');
     if (!$stmt) {
         $conn->close();
         api_send_json(500, [

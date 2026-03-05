@@ -29,6 +29,8 @@ $respondentName = trim((string)($_POST['respondent_name'] ?? ''));
 $respondentAddress = trim((string)($_POST['respondent_address'] ?? ''));
 $description = trim((string)($_POST['description'] ?? ''));
 $witness = trim((string)($_POST['witness'] ?? ''));
+$incidentDate = trim((string)($_POST['incident_date'] ?? ''));
+$incidentTime = trim((string)($_POST['incident_time'] ?? ''));
 
 if (
     $residentId <= 0
@@ -183,7 +185,10 @@ $witnessVal = $witness !== '' ? $witness : null;
 $complaintTypeVal = $complaintType !== '' ? $complaintType : null;
 $sitioVal = $sitio !== '' ? $sitio : null;
 
-$stmt = $conn->prepare('INSERT INTO complaints (resident_id, tracking_number, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$incidentDateVal = $incidentDate !== '' ? $incidentDate : null;
+$incidentTimeVal = $incidentTime !== '' ? $incidentTime : null;
+
+$stmt = $conn->prepare('INSERT INTO complaints (resident_id, tracking_number, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, incident_date, incident_time, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -193,7 +198,7 @@ if (!$stmt) {
 }
 
 $stmt->bind_param(
-    'issssssssssss',
+    'issssssssssssss',
     $residentId,
     $trackingNumber,
     $complaintTitle,
@@ -203,6 +208,8 @@ $stmt->bind_param(
     $respondentNameVal,
     $respondentAddressVal,
     $description,
+    $incidentDateVal,
+    $incidentTimeVal,
     $witnessVal,
     $evidencePath,
     $evidenceMime,

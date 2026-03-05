@@ -30,6 +30,8 @@ type ComplaintRow = {
   witness?: string | null;
   evidence_path?: string | null;
   evidence_mime?: string | null;
+  incident_date?: string | null;
+  incident_time?: string | null;
   status: string;
   created_at?: string | null;
 };
@@ -241,6 +243,8 @@ export default function ResidentDashboardPage({
   const [complaintRespondentName, setComplaintRespondentName] = useState('');
   const [complaintRespondentAddress, setComplaintRespondentAddress] = useState('');
   const [complaintDescription, setComplaintDescription] = useState('');
+  const [complaintIncidentDate, setComplaintIncidentDate] = useState('');
+  const [complaintIncidentTime, setComplaintIncidentTime] = useState('');
   const [complaintWitnesses, setComplaintWitnesses] = useState<string[]>(['']);
   const [complaintEvidence, setComplaintEvidence] = useState<File | null>(null);
   const [complaintEvidencePreview, setComplaintEvidencePreview] = useState<string | null>(null);
@@ -420,6 +424,78 @@ export default function ResidentDashboardPage({
   const [selectedIncident, setSelectedIncident] = useState<IncidentRow | null>(null);
   const [incidentEvidenceModal, setIncidentEvidenceModal] = useState<{ url: string; isVideo: boolean } | null>(null);
   const [incidentTrackingNumber, setIncidentTrackingNumber] = useState<string | null>(null);
+
+  /* ── Search & Filter state ── */
+  const [complaintSearch, setComplaintSearch] = useState('');
+  const [complaintFilterStatus, setComplaintFilterStatus] = useState('ALL');
+  const [complaintFilterCategory, setComplaintFilterCategory] = useState('ALL');
+
+  const [hearingSearch, setHearingSearch] = useState('');
+  const [hearingFilterStatus, setHearingFilterStatus] = useState('ALL');
+
+  const [incidentSearch, setIncidentSearch] = useState('');
+  const [incidentFilterStatus, setIncidentFilterStatus] = useState('ALL');
+  const [incidentFilterCategory, setIncidentFilterCategory] = useState('ALL');
+
+  /* ── Filtered data ── */
+  const filteredComplaints = useMemo(() => {
+    let list = complaints;
+    if (complaintFilterStatus !== 'ALL') {
+      list = list.filter((c) => c.status.toUpperCase() === complaintFilterStatus);
+    }
+    if (complaintFilterCategory !== 'ALL') {
+      list = list.filter((c) => c.complaint_category === complaintFilterCategory);
+    }
+    if (complaintSearch.trim()) {
+      const q = complaintSearch.trim().toLowerCase();
+      list = list.filter(
+        (c) =>
+          (c.tracking_number ?? '').toLowerCase().includes(q) ||
+          c.complaint_title.toLowerCase().includes(q) ||
+          c.complaint_category.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [complaints, complaintFilterStatus, complaintFilterCategory, complaintSearch]);
+
+  const filteredHearings = useMemo(() => {
+    let list = hearings;
+    if (hearingFilterStatus !== 'ALL') {
+      list = list.filter((h) => h.status.toUpperCase() === hearingFilterStatus);
+    }
+    if (hearingSearch.trim()) {
+      const q = hearingSearch.trim().toLowerCase();
+      list = list.filter(
+        (h) =>
+          (h.case_number ?? '').toLowerCase().includes(q) ||
+          (h.tracking_number ?? '').toLowerCase().includes(q) ||
+          h.complaint_title.toLowerCase().includes(q) ||
+          h.location.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [hearings, hearingFilterStatus, hearingSearch]);
+
+  const filteredIncidents = useMemo(() => {
+    let list = incidents;
+    if (incidentFilterStatus !== 'ALL') {
+      list = list.filter((i) => i.status.toUpperCase() === incidentFilterStatus);
+    }
+    if (incidentFilterCategory !== 'ALL') {
+      list = list.filter((i) => i.incident_category === incidentFilterCategory);
+    }
+    if (incidentSearch.trim()) {
+      const q = incidentSearch.trim().toLowerCase();
+      list = list.filter(
+        (i) =>
+          (i.tracking_number ?? '').toLowerCase().includes(q) ||
+          i.incident_type.toLowerCase().includes(q) ||
+          i.incident_category.toLowerCase().includes(q) ||
+          i.sitio.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [incidents, incidentFilterStatus, incidentFilterCategory, incidentSearch]);
 
   useEffect(() => {
     let active = true;
@@ -1275,7 +1351,9 @@ export default function ResidentDashboardPage({
                     if (
                       !complaintTitle.trim() ||
                       !complaintCategory.trim() ||
-                      !complaintDescription.trim()
+                      !complaintDescription.trim() ||
+                      !complaintIncidentDate.trim() ||
+                      !complaintIncidentTime.trim()
                     ) {
                       setComplaintError('Please fill out all required fields.');
                       return;
@@ -1290,6 +1368,8 @@ export default function ResidentDashboardPage({
                       if (complaintSitio.trim()) fd.append('sitio', complaintSitio.trim());
                       fd.append('respondent_address', complaintRespondentAddress.trim());
                       fd.append('description', complaintDescription.trim());
+                      fd.append('incident_date', complaintIncidentDate.trim());
+                      fd.append('incident_time', complaintIncidentTime.trim());
                       if (complaintRespondentName.trim()) fd.append('respondent_name', complaintRespondentName.trim());
                       const witnessStr = complaintWitnesses.map(w => w.trim()).filter(Boolean).join(', ');
                       if (witnessStr) fd.append('witness', witnessStr);
@@ -1322,6 +1402,8 @@ export default function ResidentDashboardPage({
                       setComplaintRespondentName('');
                       setComplaintRespondentAddress('');
                       setComplaintDescription('');
+                      setComplaintIncidentDate('');
+                      setComplaintIncidentTime('');
                       setComplaintWitnesses(['']);
                       setComplaintEvidence(null);
                     } catch {
@@ -1419,6 +1501,29 @@ export default function ResidentDashboardPage({
                         <option value="Spar">Spar</option>
                         <option value="Upper">Upper</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Date of Incident <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={complaintIncidentDate}
+                        onChange={(e) => setComplaintIncidentDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        Time of Incident <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={complaintIncidentTime}
+                        onChange={(e) => setComplaintIncidentTime(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                      />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-1">Witness (optional)</label>
@@ -1558,12 +1663,53 @@ export default function ResidentDashboardPage({
                   <div className="text-sm font-semibold text-gray-700">{complaints.length}</div>
                 </div>
 
+                {/* Search & Filters */}
+                <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/60">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={complaintSearch}
+                      onChange={(e) => setComplaintSearch(e.target.value)}
+                      placeholder="Search by tracking #, title, or category…"
+                      className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <select
+                    value={complaintFilterStatus}
+                    onChange={(e) => setComplaintFilterStatus(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="APPROVED">Approved</option>
+                  </select>
+                  <select
+                    value={complaintFilterCategory}
+                    onChange={(e) => setComplaintFilterCategory(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="ALL">All Categories</option>
+                    <option value="Public Safety">Public Safety</option>
+                    <option value="Road Issues">Road Issues</option>
+                    <option value="Noise Complaint">Noise Complaint</option>
+                    <option value="Street lighting">Street lighting</option>
+                    <option value="Waste Management">Waste Management</option>
+                    <option value="Water Issues">Water Issues</option>
+                    <option value="Property Damage">Property Damage</option>
+                    <option value="Other Concerns">Other Concerns</option>
+                  </select>
+                </div>
+
                 {complaintsError ? (
                   <div className="p-6 text-sm text-red-700">{complaintsError}</div>
                 ) : complaintsLoading ? (
                   <div className="p-6 text-sm text-gray-600">Loading…</div>
-                ) : complaints.length === 0 ? (
-                  <div className="p-6 text-sm text-gray-600">No complaints found yet.</div>
+                ) : filteredComplaints.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-600">
+                    {complaints.length === 0 ? 'No complaints found yet.' : 'No complaints match your search or filters.'}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
@@ -1578,7 +1724,7 @@ export default function ResidentDashboardPage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {complaints.map((row) => (
+                        {filteredComplaints.map((row) => (
                           <tr key={row.id} className="hover:bg-gray-50">
                             <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
                             <td className="px-5 py-3 text-gray-700">
@@ -1618,12 +1764,39 @@ export default function ResidentDashboardPage({
                   <div className="text-sm font-semibold text-gray-700">{hearings.length}</div>
                 </div>
 
+                {/* Search & Filters */}
+                <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/60">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={hearingSearch}
+                      onChange={(e) => setHearingSearch(e.target.value)}
+                      placeholder="Search by case #, complaint title, or location…"
+                      className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <select
+                    value={hearingFilterStatus}
+                    onChange={(e) => setHearingFilterStatus(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </div>
+
                 {hearingsError ? (
                   <div className="p-6 text-sm text-red-700">{hearingsError}</div>
                 ) : hearingsLoading ? (
                   <div className="p-6 text-sm text-gray-600">Loading…</div>
-                ) : hearings.length === 0 ? (
-                  <div className="p-6 text-sm text-gray-600">No hearing schedules found yet.</div>
+                ) : filteredHearings.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-600">
+                    {hearings.length === 0 ? 'No hearing schedules found yet.' : 'No hearings match your search or filters.'}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
@@ -1638,7 +1811,7 @@ export default function ResidentDashboardPage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {hearings.map((row) => (
+                        {filteredHearings.map((row) => (
                           <tr key={row.id} className="hover:bg-gray-50">
                             <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
                             <td className="px-5 py-3 text-gray-700">
@@ -1926,12 +2099,54 @@ export default function ResidentDashboardPage({
                   <div className="text-sm font-semibold text-gray-700">{incidents.length}</div>
                 </div>
 
+                {/* Search & Filters */}
+                <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50/60">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={incidentSearch}
+                      onChange={(e) => setIncidentSearch(e.target.value)}
+                      placeholder="Search by tracking #, type, category, or sitio…"
+                      className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                  <select
+                    value={incidentFilterStatus}
+                    onChange={(e) => setIncidentFilterStatus(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="TRANSFERRED">Transferred</option>
+                  </select>
+                  <select
+                    value={incidentFilterCategory}
+                    onChange={(e) => setIncidentFilterCategory(e.target.value)}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="ALL">All Categories</option>
+                    <option value="Fire Incident">Fire Incident</option>
+                    <option value="Flood">Flood</option>
+                    <option value="Vehicular Accident">Vehicular Accident</option>
+                    <option value="Crime/Theft">Crime/Theft</option>
+                    <option value="Medical Emergency">Medical Emergency</option>
+                    <option value="Natural Disaster">Natural Disaster</option>
+                    <option value="Utility Disruption">Utility Disruption</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
                 {incidentsError ? (
                   <div className="p-6 text-sm text-red-700">{incidentsError}</div>
                 ) : incidentsLoading ? (
                   <div className="p-6 text-sm text-gray-600">Loading…</div>
-                ) : incidents.length === 0 ? (
-                  <div className="p-6 text-sm text-gray-600">No incident reports found yet.</div>
+                ) : filteredIncidents.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-600">
+                    {incidents.length === 0 ? 'No incident reports found yet.' : 'No incidents match your search or filters.'}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
@@ -1947,7 +2162,7 @@ export default function ResidentDashboardPage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {incidents.map((row) => (
+                        {filteredIncidents.map((row) => (
                           <tr key={row.id} className="hover:bg-gray-50">
                             <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
                             <td className="px-5 py-3 text-gray-700">{row.incident_type}</td>
@@ -2142,6 +2357,14 @@ export default function ResidentDashboardPage({
                 <div>
                   <div className="text-xs text-gray-500">Respondent Sitio</div>
                   <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.sitio ?? '-'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Date of Incident</div>
+                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.incident_date ? new Date(selectedComplaint.incident_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Time of Incident</div>
+                  <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.incident_time ? new Date('1970-01-01T' + selectedComplaint.incident_time).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Witness</div>

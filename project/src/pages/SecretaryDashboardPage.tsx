@@ -39,6 +39,8 @@ type ComplaintRow = {
   witness?: string | null;
   evidence_path?: string | null;
   evidence_mime?: string | null;
+  incident_date?: string | null;
+  incident_time?: string | null;
   status: string;
   created_at?: string | null;
   has_hearing?: boolean;
@@ -277,6 +279,94 @@ export default function SecretaryDashboardPage({
   const [caseResolutionFilter, setCaseResolutionFilter] = useState<'all' | 'resolved' | 'unresolved'>('all');
   const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
   const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
+
+  // Search & filter state
+  const [residentSearch, setResidentSearch] = useState('');
+  const [residentFilterSitio, setResidentFilterSitio] = useState('ALL');
+  const [complaintSearch, setComplaintSearch] = useState('');
+  const [complaintFilterCategory, setComplaintFilterCategory] = useState('ALL');
+  const [hearingSearch, setHearingSearch] = useState('');
+  const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
+  const [caseResolutionFilterMethod, setCaseResolutionFilterMethod] = useState('ALL');
+
+  // Filtered data
+  const residentSitioOptions = useMemo(() => {
+    const all = [...residents, ...approvedResidents].map(r => r.sitio).filter(Boolean);
+    return ['ALL', ...Array.from(new Set(all)).sort()];
+  }, [residents, approvedResidents]);
+
+  const filteredResidents = useMemo(() => {
+    let data = residents;
+    if (residentSearch) {
+      const q = residentSearch.toLowerCase();
+      data = data.filter(r => {
+        const name = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.toLowerCase();
+        return name.includes(q) || r.email.toLowerCase().includes(q);
+      });
+    }
+    if (residentFilterSitio !== 'ALL') data = data.filter(r => r.sitio === residentFilterSitio);
+    return data;
+  }, [residents, residentSearch, residentFilterSitio]);
+
+  const filteredApprovedResidents = useMemo(() => {
+    let data = approvedResidents;
+    if (residentSearch) {
+      const q = residentSearch.toLowerCase();
+      data = data.filter(r => {
+        const name = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.toLowerCase();
+        return name.includes(q) || r.email.toLowerCase().includes(q);
+      });
+    }
+    if (residentFilterSitio !== 'ALL') data = data.filter(r => r.sitio === residentFilterSitio);
+    return data;
+  }, [approvedResidents, residentSearch, residentFilterSitio]);
+
+  const complaintCategoryOptions = useMemo(() => {
+    const cats = complaints.map(c => c.complaint_category).filter(Boolean);
+    return ['ALL', ...Array.from(new Set(cats)).sort()];
+  }, [complaints]);
+
+  const filteredComplaints = useMemo(() => {
+    let data = complaints;
+    if (complaintSearch) {
+      const q = complaintSearch.toLowerCase();
+      data = data.filter(c =>
+        (c.tracking_number ?? '').toLowerCase().includes(q) ||
+        (c.resident_name ?? '').toLowerCase().includes(q) ||
+        c.complaint_title.toLowerCase().includes(q)
+      );
+    }
+    if (complaintFilterCategory !== 'ALL') data = data.filter(c => c.complaint_category === complaintFilterCategory);
+    return data;
+  }, [complaints, complaintSearch, complaintFilterCategory]);
+
+  const filteredHearings = useMemo(() => {
+    if (!hearingSearch) return hearings;
+    const q = hearingSearch.toLowerCase();
+    return hearings.filter(h =>
+      (h.case_number ?? h.tracking_number ?? '').toLowerCase().includes(q) ||
+      h.complaint_title.toLowerCase().includes(q) ||
+      h.location.toLowerCase().includes(q)
+    );
+  }, [hearings, hearingSearch]);
+
+  const caseResolutionMethodOptions = useMemo(() => {
+    const methods = caseResolutionHearings.map(h => h.resolution_method).filter(Boolean) as string[];
+    return ['ALL', ...Array.from(new Set(methods)).sort()];
+  }, [caseResolutionHearings]);
+
+  const filteredCaseResolutions = useMemo(() => {
+    let data = caseResolutionHearings;
+    if (caseResolutionSearch) {
+      const q = caseResolutionSearch.toLowerCase();
+      data = data.filter(h =>
+        (h.case_number ?? h.tracking_number ?? '').toLowerCase().includes(q) ||
+        h.complaint_title.toLowerCase().includes(q)
+      );
+    }
+    if (caseResolutionFilterMethod !== 'ALL') data = data.filter(h => h.resolution_method === caseResolutionFilterMethod);
+    return data;
+  }, [caseResolutionHearings, caseResolutionSearch, caseResolutionFilterMethod]);
 
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState<{
@@ -1385,16 +1475,38 @@ export default function SecretaryDashboardPage({
                         {residentsTab === 'pending' ? 'Show Approved' : 'Show Pending'}
                       </button>
                       <div className="text-sm font-semibold text-gray-700">
-                        {residentsTab === 'pending' ? residents.length : approvedResidents.length}
+                        {residentsTab === 'pending' ? filteredResidents.length : filteredApprovedResidents.length}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-200">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by name, email…"
+                        value={residentSearch}
+                        onChange={(e) => setResidentSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                      />
+                    </div>
+                    <select
+                      value={residentFilterSitio}
+                      onChange={(e) => setResidentFilterSitio(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    >
+                      {residentSitioOptions.map((s) => (
+                        <option key={s} value={s}>{s === 'ALL' ? 'All Sitios' : s}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {residentsLoading ? (
                     <div className="p-6 text-sm text-gray-600">Loading…</div>
                   ) : residentsTab === 'pending' ? (
-                    residents.length === 0 ? (
-                      <div className="p-6 text-sm text-gray-600">No pending residents.</div>
+                    filteredResidents.length === 0 ? (
+                      <div className="p-6 text-sm text-gray-600">{residentSearch || residentFilterSitio !== 'ALL' ? 'No matching pending residents.' : 'No pending residents.'}</div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-left text-sm">
@@ -1409,7 +1521,7 @@ export default function SecretaryDashboardPage({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
-                            {residents.map((r) => {
+                            {filteredResidents.map((r) => {
                               const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
                               const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
                               const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
@@ -1510,8 +1622,8 @@ export default function SecretaryDashboardPage({
                         </table>
                       </div>
                     )
-                  ) : approvedResidents.length === 0 ? (
-                    <div className="p-6 text-sm text-gray-600">No approved residents yet.</div>
+                  ) : filteredApprovedResidents.length === 0 ? (
+                    <div className="p-6 text-sm text-gray-600">{residentSearch || residentFilterSitio !== 'ALL' ? 'No matching approved residents.' : 'No approved residents yet.'}</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-left text-sm">
@@ -1525,7 +1637,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {approvedResidents.map((r) => {
+                          {filteredApprovedResidents.map((r) => {
                             const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
                             const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
                             const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
@@ -1648,6 +1760,14 @@ export default function SecretaryDashboardPage({
                           <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.respondent_address ?? '-'}</div>
                         </div>
                         <div>
+                          <div className="text-xs text-gray-500">Date of Incident</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.incident_date ? new Date(selectedComplaint.incident_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500">Time of Incident</div>
+                          <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.incident_time ? new Date('1970-01-01T' + selectedComplaint.incident_time).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}</div>
+                        </div>
+                        <div>
                           <div className="text-xs text-gray-500">Witness</div>
                           <div className="mt-1 font-semibold text-gray-900">{selectedComplaint.witness ?? '-'}</div>
                         </div>
@@ -1767,16 +1887,40 @@ export default function SecretaryDashboardPage({
                           : `Showing ${complaintStatus.toLowerCase()} complaints.`}
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-gray-700">{complaints.length}</div>
+                    <div className="text-sm font-semibold text-gray-700">{filteredComplaints.length}</div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-200">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by tracking #, name, title…"
+                        value={complaintSearch}
+                        onChange={(e) => setComplaintSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                      />
+                    </div>
+                    <select
+                      value={complaintFilterCategory}
+                      onChange={(e) => setComplaintFilterCategory(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    >
+                      {complaintCategoryOptions.map((c) => (
+                        <option key={c} value={c}>{c === 'ALL' ? 'All Categories' : c}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {complaintsLoading ? (
                     <div className="p-6 text-sm text-gray-600">Loading…</div>
-                  ) : complaints.length === 0 ? (
+                  ) : filteredComplaints.length === 0 ? (
                     <div className="p-6 text-sm text-gray-600">
-                      {complaintStatus === 'ALL'
-                        ? 'No complaints found yet.'
-                        : `No ${complaintStatus.toLowerCase()} complaints found.`}
+                      {complaintSearch || complaintFilterCategory !== 'ALL'
+                        ? 'No matching complaints found.'
+                        : complaintStatus === 'ALL'
+                          ? 'No complaints found yet.'
+                          : `No ${complaintStatus.toLowerCase()} complaints found.`}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1794,7 +1938,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {complaints.map((row) => (
+                          {filteredComplaints.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3 text-gray-700">{row.resident_name ?? '-'}</td>
@@ -1879,16 +2023,31 @@ export default function SecretaryDashboardPage({
                           : `Showing ${hearingStatus.toLowerCase()} hearings.`}
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-gray-700">{hearings.length}</div>
+                    <div className="text-sm font-semibold text-gray-700">{filteredHearings.length}</div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-200">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by case #, title, location…"
+                        value={hearingSearch}
+                        onChange={(e) => setHearingSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                      />
+                    </div>
                   </div>
 
                   {hearingsLoading ? (
                     <div className="p-6 text-sm text-gray-600">Loading…</div>
-                  ) : hearings.length === 0 ? (
+                  ) : filteredHearings.length === 0 ? (
                     <div className="p-6 text-sm text-gray-600">
-                      {hearingStatus === 'ALL'
-                        ? 'No hearing schedules found yet.'
-                        : `No ${hearingStatus.toLowerCase()} hearings found.`}
+                      {hearingSearch
+                        ? 'No matching hearing schedules found.'
+                        : hearingStatus === 'ALL'
+                          ? 'No hearing schedules found yet.'
+                          : `No ${hearingStatus.toLowerCase()} hearings found.`}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1905,7 +2064,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {hearings.map((row) => (
+                          {filteredHearings.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3 text-gray-700">
@@ -2136,11 +2295,34 @@ export default function SecretaryDashboardPage({
                 </div>
 
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-200">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by case #, complaint…"
+                        value={caseResolutionSearch}
+                        onChange={(e) => setCaseResolutionSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                      />
+                    </div>
+                    <select
+                      value={caseResolutionFilterMethod}
+                      onChange={(e) => setCaseResolutionFilterMethod(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    >
+                      {caseResolutionMethodOptions.map((m) => (
+                        <option key={m} value={m}>{m === 'ALL' ? 'All Methods' : m}</option>
+                      ))}
+                    </select>
+                  </div>
                   {caseResolutionLoading ? (
                     <div className="flex items-center justify-center py-16 text-gray-400">Loading cases...</div>
-                  ) : caseResolutionHearings.length === 0 ? (
+                  ) : filteredCaseResolutions.length === 0 ? (
                     <div className="p-8 text-center text-sm text-gray-500">
-                      {caseResolutionFilter === 'resolved' ? 'No resolved cases found.' : caseResolutionFilter === 'unresolved' ? 'No unresolved cases found.' : 'No cases found.'}
+                      {caseResolutionSearch || caseResolutionFilterMethod !== 'ALL'
+                        ? 'No matching cases found.'
+                        : caseResolutionFilter === 'resolved' ? 'No resolved cases found.' : caseResolutionFilter === 'unresolved' ? 'No unresolved cases found.' : 'No cases found.'}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -2158,7 +2340,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {caseResolutionHearings.map((row) => (
+                          {filteredCaseResolutions.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3">
