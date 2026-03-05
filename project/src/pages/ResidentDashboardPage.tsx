@@ -236,6 +236,7 @@ export default function ResidentDashboardPage({
 
   const [complaintTitle, setComplaintTitle] = useState('');
   const [complaintCategory, setComplaintCategory] = useState('');
+  const [categoryAutoSet, setCategoryAutoSet] = useState(false);
   const [complaintSitio, setComplaintSitio] = useState('');
   const [complaintRespondentName, setComplaintRespondentName] = useState('');
   const [complaintRespondentAddress, setComplaintRespondentAddress] = useState('');
@@ -257,6 +258,147 @@ export default function ResidentDashboardPage({
   const [hearingsLoading, setHearingsLoading] = useState(false);
   const [hearingsError, setHearingsError] = useState<string | null>(null);
   const evidenceInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Auto-categorize complaint based on title (English + Tagalog keywords) ── */
+  const CATEGORY_KEYWORDS: Record<string, string[]> = useMemo(
+    () => ({
+      'Public Safety': [
+        // English
+        'theft', 'steal', 'stole', 'stolen', 'rob', 'robbery', 'holdup', 'hold-up', 'hold up',
+        'assault', 'attack', 'fight', 'fighting', 'violence', 'violent', 'punch', 'stab',
+        'threat', 'threaten', 'harass', 'harassment', 'bully', 'bullying',
+        'drug', 'drugs', 'shabu', 'marijuana', 'drunk', 'drunkard', 'intoxicated',
+        'gun', 'firearm', 'weapon', 'knife', 'balisong',
+        'danger', 'dangerous', 'unsafe', 'crime', 'criminal', 'suspicious',
+        'trespassing', 'trespass', 'break-in', 'break in', 'prowler', 'vandal', 'vandalism',
+        'safety', 'public safety', 'security',
+        // Tagalog
+        'nakaw', 'magnakaw', 'magnanakaw', 'ninakaw', 'nakawin',
+        'holdap', 'saksak', 'sinaksak', 'sinuntok', 'suntok', 'bugbog', 'binugbog',
+        'away', 'nag-aaway', 'nagaaway', 'nag-away', 'basag-ulo', 'basagulo', 'rambol',
+        'banta', 'nagbabanta', 'pangha-harass', 'panghaharass', 'nang-haharass', 'nanghaharass',
+        'droga', 'tulak', 'adik', 'lasing', 'lasinggero', 'lasenggo',
+        'baril', 'armas', 'kutsilyo',
+        'panganib', 'mapanganib', 'krimen', 'kriminal', 'suspek',
+        'pananambang', 'pangingikil',
+      ],
+      'Road Issues': [
+        // English
+        'road', 'pothole', 'pot hole', 'crack', 'cracked road', 'broken road',
+        'street', 'pavement', 'sidewalk', 'parking', 'traffic', 'congestion',
+        'blockage', 'blocked road', 'road block', 'roadblock',
+        'flooding road', 'flooded road', 'muddy road', 'slippery road',
+        'manhole', 'sinkhole', 'path', 'pathway', 'crossing',
+        // Tagalog
+        'kalsada', 'daan', 'kalye', 'lubak', 'butas', 'basag na daan',
+        'sira ang daan', 'sirang kalsada', 'sirang daan',
+        'trapik', 'trapiko', 'harang', 'nakaharang', 'nakahalang',
+        'baha sa daan', 'madulas', 'maputik',
+      ],
+      'Noise Complaint': [
+        // English
+        'noise', 'noisy', 'loud', 'loud music', 'karaoke', 'videoke',
+        'barking', 'dog barking', 'party', 'loud party',
+        'construction noise', 'disturbance', 'disturbing',
+        'sound', 'blasting', 'speaker', 'horn', 'honking',
+        // Tagalog
+        'ingay', 'maingay', 'sobrang ingay', 'nakakaingay', 'maingay na',
+        'videoke', 'karaoke', 'tahol', 'tumatahol', 'kagat ng aso',
+        'gulo', 'magulo', 'magulong', 'nakakaistorbo', 'istorbo',
+        'nagpapatugtog', 'patugtog', 'malakas ang tugtog',
+      ],
+      'Street lighting': [
+        // English
+        'light', 'lighting', 'street light', 'streetlight', 'lamp', 'lamp post', 'lamppost',
+        'dark', 'no light', 'broken light', 'busted light', 'dim', 'flickering',
+        'blackout', 'brownout', 'power outage', 'no electricity',
+        // Tagalog
+        'ilaw', 'walang ilaw', 'sira ang ilaw', 'sirang ilaw', 'madilim',
+        'poste', 'poste ng ilaw', 'walang poste',
+        'brownout', 'blackout', 'walang kuryente', 'walang ilaw sa kalye',
+        'dim na ilaw', 'kumukurap', 'kumurap',
+      ],
+      'Waste Management': [
+        // English
+        'garbage', 'trash', 'waste', 'rubbish', 'litter', 'littering',
+        'dump', 'dumping', 'dumpsite', 'illegal dumping',
+        'dirty', 'filthy', 'unsanitary', 'stink', 'stinking', 'smelly', 'smell',
+        'rat', 'rats', 'roach', 'cockroach', 'pest', 'infestation',
+        'recycling', 'compost', 'collection', 'garbage collection',
+        // Tagalog
+        'basura', 'kalat', 'marumi', 'makalat', 'dumi', 'madumi',
+        'nagtatapon', 'nagtapon ng basura', 'illegal na pagtatapon',
+        'mabaho', 'baho', 'bulok', 'nabubulok',
+        'daga', 'ipis', 'peste',
+        'walang koleksyon', 'hindi kinokolekta', 'hindi kinukuha ang basura',
+      ],
+      'Water Issues': [
+        // English
+        'water', 'leak', 'leaking', 'pipe', 'broken pipe', 'burst pipe',
+        'no water', 'water supply', 'low pressure', 'dirty water', 'contaminated',
+        'flood', 'flooding', 'drainage', 'drain', 'clogged', 'clogged drain',
+        'sewer', 'sewage', 'overflow', 'water outage',
+        // Tagalog
+        'tubig', 'walang tubig', 'tubo', 'sira ang tubo', 'tumutulo',
+        'tagas', 'tumatagos', 'mabahong tubig', 'maruming tubig',
+        'baha', 'bumabaha', 'binabaha', 'kanal', 'drainage',
+        'barado', 'baradong kanal', 'baradong drainage',
+        'imburnal', 'alkantarilya', 'umaapaw',
+      ],
+      'Property Damage': [
+        // English
+        'property', 'damage', 'damaged', 'broken', 'vandalize', 'vandalized',
+        'fence', 'gate', 'wall', 'window', 'roof', 'house',
+        'car', 'vehicle', 'scratch', 'dent', 'smash', 'smashed',
+        'graffiti', 'destroy', 'destroyed', 'wreck', 'wrecked',
+        'fire', 'burned', 'burnt', 'arson',
+        // Tagalog
+        'ari-arian', 'pinsala', 'napinsala', 'nasira', 'sira',
+        'bakod', 'gate', 'pader', 'bintana', 'bubong', 'bahay',
+        'kotse', 'sasakyan', 'gasgas', 'yupi', 'basag',
+        'graffiti', 'sinira', 'winasak', 'gibang', 'winarak',
+        'sunog', 'nasunog', 'nasusunog', 'sinunog', 'lupa', 'halaman'
+      ],
+    }),
+    []
+  );
+
+  useEffect(() => {
+    const title = complaintTitle.trim().toLowerCase();
+    if (!title) {
+      if (categoryAutoSet) {
+        setComplaintCategory('');
+        setCategoryAutoSet(false);
+      }
+      return;
+    }
+
+    let bestCategory = '';
+    let bestScore = 0;
+
+    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      let score = 0;
+      for (const kw of keywords) {
+        if (title.includes(kw.toLowerCase())) {
+          // Longer keyword matches are weighted higher
+          score += kw.length;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestCategory = category;
+      }
+    }
+
+    if (bestCategory && bestScore > 0) {
+      setComplaintCategory(bestCategory);
+      setCategoryAutoSet(true);
+    } else if (categoryAutoSet) {
+      // No match found, reset if previously auto-set
+      setComplaintCategory('Other Concerns');
+      setCategoryAutoSet(true);
+    }
+  }, [complaintTitle, CATEGORY_KEYWORDS, categoryAutoSet]);
 
   // --- Incident Report state ---
   const [incidentType, setIncidentType] = useState('');
@@ -1175,6 +1317,7 @@ export default function ResidentDashboardPage({
                       }
                       setComplaintTitle('');
                       setComplaintCategory('');
+                      setCategoryAutoSet(false);
                       setComplaintSitio(residentSitio);
                       setComplaintRespondentName('');
                       setComplaintRespondentAddress('');
@@ -1197,7 +1340,7 @@ export default function ResidentDashboardPage({
                         value={complaintTitle}
                         onChange={(e) => setComplaintTitle(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
-                        placeholder="Complaint title"
+                        placeholder="Describe your complaint (e.g. Maingay na videoke, Broken street light)"
                       />
                     </div>
                     <div>
@@ -1206,8 +1349,15 @@ export default function ResidentDashboardPage({
                       </label>
                       <select
                         value={complaintCategory}
-                        onChange={(e) => setComplaintCategory(e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                        onChange={(e) => {
+                          setComplaintCategory(e.target.value);
+                          setCategoryAutoSet(false);
+                        }}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${
+                          categoryAutoSet
+                            ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                            : 'border-gray-300 bg-white text-gray-700'
+                        }`}
                       >
                         <option value="" disabled>
                           Select complaint category
@@ -1221,6 +1371,11 @@ export default function ResidentDashboardPage({
                         <option value="Property Damage">Property Damage</option>
                         <option value="Other Concerns">Other Concerns</option>
                       </select>
+                      {categoryAutoSet && complaintCategory ? (
+                        <p className="mt-1 text-xs text-emerald-600">
+                          ✨ Auto-detected: <span className="font-semibold">{complaintCategory}</span> — you can change it manually
+                        </p>
+                      ) : null}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">Respondent Name (optional)</label>
