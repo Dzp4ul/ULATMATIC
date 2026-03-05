@@ -10,11 +10,16 @@ import {
   LogOut,
   Menu,
   Search,
-  AlertCircle,
   User,
   Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  PieChart, Pie, Cell,
+  AreaChart, Area,
+  type PieLabelRenderProps,
+} from 'recharts';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type ComplaintRow = {
@@ -270,6 +275,18 @@ export default function CaptainDashboardPage({
   const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
   const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
 
+  // Dashboard stats state
+  const [dashboardStats, setDashboardStats] = useState<{
+    complaints: { PENDING: number; APPROVED: number; IN_PROGRESS: number; CANCELLED: number; total: number };
+    hearings: { PENDING: number; APPROVED: number; CANCELLED: number; RESOLVED: number; total: number };
+    residents: { total: number; pending: number; approved: number; declined: number };
+    monthly: Array<{ month: string; complaints: number; hearings: number; resolutions: number }>;
+    complaint_categories: Array<{ name: string; value: number }>;
+    complaint_types: Array<{ name: string; value: number }>;
+    resolution_types: Array<{ name: string; value: number }>;
+  } | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+
   // Check if the selected complaint has a hearing when entering complaint_detail view
   useEffect(() => {
     if (activeView !== 'complaint_detail' || !selectedComplaint) return;
@@ -349,6 +366,26 @@ export default function CaptainDashboardPage({
       active = false;
     };
   }, [onNavigate]);
+
+  // Fetch dashboard stats
+  useEffect(() => {
+    if (activeView !== 'dashboard') return;
+    let active = true;
+    const fetchStats = async () => {
+      setDashboardLoading(true);
+      try {
+        const res = await fetch('http://localhost/ULATMATIC/api/shared/dashboard_stats.php');
+        const data = await res.json();
+        if (active && res.ok && data.ok) {
+          setDashboardStats(data);
+        }
+      } catch { /* ignore */ } finally {
+        if (active) setDashboardLoading(false);
+      }
+    };
+    void fetchStats();
+    return () => { active = false; };
+  }, [activeView]);
 
   useEffect(() => {
     if (!profilePhotoFile) {
@@ -723,42 +760,42 @@ export default function CaptainDashboardPage({
     () => [
       {
         title: 'Approved Complaints',
-        value: 0,
+        value: dashboardStats?.complaints.APPROVED ?? 0,
         icon: <FileCheck className="h-5 w-5 text-blue-700" />,
         iconBgClassName: 'bg-blue-100',
       },
       {
         title: 'Pending Complaints',
-        value: 0,
+        value: dashboardStats?.complaints.PENDING ?? 0,
         icon: <FileText className="h-5 w-5 text-emerald-700" />,
         iconBgClassName: 'bg-emerald-100',
       },
       {
         title: 'Cancelled Complaints',
-        value: 0,
+        value: dashboardStats?.complaints.CANCELLED ?? 0,
         icon: <FolderCheck className="h-5 w-5 text-orange-700" />,
         iconBgClassName: 'bg-orange-100',
       },
       {
         title: 'Approved Hearings',
-        value: 0,
+        value: dashboardStats?.hearings.APPROVED ?? 0,
         icon: <Calendar className="h-5 w-5 text-emerald-700" />,
         iconBgClassName: 'bg-emerald-100',
       },
       {
         title: 'Pending Hearings',
-        value: 0,
+        value: dashboardStats?.hearings.PENDING ?? 0,
         icon: <Calendar className="h-5 w-5 text-blue-700" />,
         iconBgClassName: 'bg-blue-100',
       },
       {
         title: 'Cancelled Hearings',
-        value: 0,
+        value: dashboardStats?.hearings.CANCELLED ?? 0,
         icon: <Calendar className="h-5 w-5 text-orange-700" />,
         iconBgClassName: 'bg-orange-100',
       },
     ],
-    []
+    [dashboardStats]
   );
 
   const selectedEvidenceUrl = selectedComplaint?.evidence_path
@@ -1084,12 +1121,101 @@ export default function CaptainDashboardPage({
 
                 <section className="mt-6 grid gap-4 xl:grid-cols-2">
                   <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <div className="text-sm font-semibold text-gray-900">Total Case Reports</div>
-                    <div className="mt-3 h-40 rounded-lg bg-gray-50" />
+                    <div className="text-sm font-semibold text-gray-900 mb-1">Complaints & Hearings by Month</div>
+                    <p className="text-xs text-gray-500 mb-3">Monthly overview for {new Date().getFullYear()}</p>
+                    {dashboardLoading ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">Loading...</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={224}>
+                        <BarChart data={dashboardStats?.monthly ?? []} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="complaints" name="Complaints" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="hearings" name="Hearings" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                   <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <div className="text-sm font-semibold text-gray-900">Total Case Resolutions</div>
-                    <div className="mt-3 h-40 rounded-lg bg-gray-50" />
+                    <div className="text-sm font-semibold text-gray-900 mb-1">Case Resolutions by Month</div>
+                    <p className="text-xs text-gray-500 mb-3">Resolved cases for {new Date().getFullYear()}</p>
+                    {dashboardLoading ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">Loading...</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={224}>
+                        <AreaChart data={dashboardStats?.monthly ?? []} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Area type="monotone" dataKey="resolutions" name="Resolutions" stroke="#8b5cf6" fill="#8b5cf680" strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </section>
+
+                <section className="mt-6 grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="text-sm font-semibold text-gray-900 mb-1">Complaint Categories</div>
+                    <p className="text-xs text-gray-500 mb-3">Distribution by category</p>
+                    {dashboardLoading ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">Loading...</div>
+                    ) : (dashboardStats?.complaint_categories?.length ?? 0) === 0 ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">No data available</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={224}>
+                        <PieChart>
+                          <Pie
+                            data={dashboardStats?.complaint_categories ?? []}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            innerRadius={40}
+                            paddingAngle={3}
+                            dataKey="value"
+                            label={(props: PieLabelRenderProps) => `${props.name ?? ''} ${(((props.percent as number) ?? 0) * 100).toFixed(0)}%`}
+                          >
+                            {(dashboardStats?.complaint_categories ?? []).map((_, idx) => (
+                              <Cell key={idx} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'][idx % 8]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="text-sm font-semibold text-gray-900 mb-1">Resolution Types</div>
+                    <p className="text-xs text-gray-500 mb-3">How cases were resolved</p>
+                    {dashboardLoading ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">Loading...</div>
+                    ) : (dashboardStats?.resolution_types?.length ?? 0) === 0 ? (
+                      <div className="h-56 flex items-center justify-center text-sm text-gray-400">No data available</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={224}>
+                        <PieChart>
+                          <Pie
+                            data={dashboardStats?.resolution_types ?? []}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            innerRadius={40}
+                            paddingAngle={3}
+                            dataKey="value"
+                            label={(props: PieLabelRenderProps) => `${props.name ?? ''} ${(((props.percent as number) ?? 0) * 100).toFixed(0)}%`}
+                          >
+                            {(dashboardStats?.resolution_types ?? []).map((_, idx) => (
+                              <Cell key={idx} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][idx % 6]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </section>
               </>
