@@ -56,13 +56,21 @@ if (!isset($_FILES['front_id']) || !isset($_FILES['back_id'])) {
     ]);
 }
 
-$front = $_FILES['front_id'];
-$back = $_FILES['back_id'];
-
-if (($front['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($back['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+if (!isset($_FILES['selfie'])) {
     api_send_json(400, [
         'ok' => false,
-        'error' => 'Failed to upload ID files',
+        'error' => 'Selfie photo is required for face verification',
+    ]);
+}
+
+$front = $_FILES['front_id'];
+$back = $_FILES['back_id'];
+$selfie = $_FILES['selfie'];
+
+if (($front['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($back['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($selfie['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Failed to upload files',
     ]);
 }
 
@@ -95,18 +103,22 @@ $sanitize = static function (string $value): string {
 
 $frontExt = strtolower(pathinfo((string)($front['name'] ?? ''), PATHINFO_EXTENSION));
 $backExt = strtolower(pathinfo((string)($back['name'] ?? ''), PATHINFO_EXTENSION));
+$selfieExt = strtolower(pathinfo((string)($selfie['name'] ?? ''), PATHINFO_EXTENSION));
 
 $frontExt = $frontExt !== '' ? $frontExt : 'bin';
 $backExt = $backExt !== '' ? $backExt : 'bin';
+$selfieExt = $selfieExt !== '' ? $selfieExt : 'jpg';
 
 $tag = $sanitize($email) . '_' . bin2hex(random_bytes(6));
 $frontFilename = 'front_' . $tag . '.' . $frontExt;
 $backFilename = 'back_' . $tag . '.' . $backExt;
+$selfieFilename = 'selfie_' . $tag . '.' . $selfieExt;
 
 $frontAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $frontFilename;
 $backAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $backFilename;
+$selfieAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $selfieFilename;
 
-if (!move_uploaded_file((string)$front['tmp_name'], $frontAbs) || !move_uploaded_file((string)$back['tmp_name'], $backAbs)) {
+if (!move_uploaded_file((string)$front['tmp_name'], $frontAbs) || !move_uploaded_file((string)$back['tmp_name'], $backAbs) || !move_uploaded_file((string)$selfie['tmp_name'], $selfieAbs)) {
     api_send_json(500, [
         'ok' => false,
         'error' => 'Failed to save uploaded files',
@@ -115,6 +127,7 @@ if (!move_uploaded_file((string)$front['tmp_name'], $frontAbs) || !move_uploaded
 
 $frontPath = $uploadsRelDir . '/' . $frontFilename;
 $backPath = $uploadsRelDir . '/' . $backFilename;
+$selfiePath = $uploadsRelDir . '/' . $selfieFilename;
 
 $conn = api_db();
 api_ensure_resident_user_schema($conn);
@@ -151,7 +164,7 @@ if ($existing) {
     $declinedAt = null;
 
     $stmt = $conn->prepare(
-        'UPDATE resident_user SET fname = ?, midname = ?, lname = ?, phone = ?, gender = ?, sitio = ?, user_pass = ?, front_id = ?, back_id = ?, status = ?, approved_at = ?, declined_at = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?'
+        'UPDATE resident_user SET fname = ?, midname = ?, lname = ?, phone = ?, gender = ?, sitio = ?, user_pass = ?, front_id = ?, back_id = ?, selfie_photo = ?, status = ?, approved_at = ?, declined_at = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?'
     );
 
     if (!$stmt) {
@@ -162,7 +175,7 @@ if ($existing) {
         ]);
     }
 
-    $stmt->bind_param('sssssssssssii', $fname, $midname, $lname, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $status, $approvedAt, $declinedAt, $id);
+    $stmt->bind_param('ssssssssssssii', $fname, $midname, $lname, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status, $approvedAt, $declinedAt, $id);
     $stmt->execute();
     $stmt->close();
     $conn->close();
@@ -177,7 +190,7 @@ if ($existing) {
 
 $status = 'PENDING';
 $stmt = $conn->prepare(
-    'INSERT INTO resident_user (fname, midname, lname, email, phone, gender, sitio, user_pass, front_id, back_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO resident_user (fname, midname, lname, email, phone, gender, sitio, user_pass, front_id, back_id, selfie_photo, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 if (!$stmt) {
     $conn->close();
@@ -187,7 +200,7 @@ if (!$stmt) {
     ]);
 }
 
-$stmt->bind_param('sssssssssss', $fname, $midname, $lname, $email, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $status);
+$stmt->bind_param('ssssssssssss', $fname, $midname, $lname, $email, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status);
 $stmt->execute();
 $id = $stmt->insert_id;
 $stmt->close();

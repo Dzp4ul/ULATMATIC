@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Eye, EyeOff, Camera, RotateCcw, X } from 'lucide-react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 import { FileDropzone } from '../components/FileDropzone';
 
@@ -33,6 +33,15 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const idFrontInputRef = useRef<HTMLInputElement>(null);
   const idBackInputRef = useRef<HTMLInputElement>(null);
 
+  // Selfie camera state
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     if (!idFrontFile || !idFrontFile.type.startsWith('image/')) {
       setIdFrontPreviewUrl(null);
@@ -52,6 +61,89 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     setIdBackPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [idBackFile]);
+
+  // Selfie preview URL
+  useEffect(() => {
+    if (!selfieFile) {
+      setSelfiePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selfieFile);
+    setSelfiePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selfieFile]);
+
+  // Camera stream management
+  const stopCamera = useCallback(() => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((t) => t.stop());
+      setCameraStream(null);
+    }
+  }, [cameraStream]);
+
+  const startCamera = useCallback(async (facing: 'user' | 'environment' = 'user') => {
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch {
+      setError('Unable to access camera. Please allow camera permissions.');
+      setCameraOpen(false);
+    }
+  }, [stopCamera]);
+
+  useEffect(() => {
+    if (cameraOpen) {
+      startCamera(facingMode);
+    } else {
+      stopCamera();
+    }
+    return () => {
+      // cleanup on unmount
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraOpen, facingMode]);
+
+  // Stop camera on component unmount
+  useEffect(() => {
+    return () => {
+      // Stop all tracks when component unmounts
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const captureSelfie = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    // Mirror for front camera
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+        setSelfieFile(file);
+        setCameraOpen(false);
+        stopCamera();
+      }
+    }, 'image/jpeg', 0.9);
+  };
 
   useEffect(() => {
     if (!otpModalOpen) return;
@@ -114,6 +206,11 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
       return false;
     }
 
+    if (!selfieFile) {
+      setError('Please take a selfie for face verification.');
+      return false;
+    }
+
     if (password.trim() === '' || password !== confirmPassword) {
       setError('Passwords do not match.');
       return false;
@@ -130,6 +227,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     form.append('user_pass', password);
     form.append('front_id', idFrontFile);
     form.append('back_id', idBackFile);
+    form.append('selfie', selfieFile);
 
     const res = await fetch('http://localhost/ULATMATIC/api/resident/register.php', {
       method: 'POST',
@@ -206,6 +304,11 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
                 if (!idFrontFile || !idBackFile) {
                   setError('Please upload both front and back ID images.');
+                  return;
+                }
+
+                if (!selfieFile) {
+                  setError('Please take a selfie for face verification.');
                   return;
                 }
                 setSubmitting(true);
@@ -438,6 +541,53 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 </p>
               </div>
 
+              {/* Selfie capture section */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Take a Selfie (Face Verification)</label>
+                {selfiePreviewUrl ? (
+                  <div className="relative rounded-xl border-2 border-dashed border-gray-300 p-4 bg-white">
+                    <div className="flex flex-col items-center gap-3">
+                      <img
+                        src={selfiePreviewUrl}
+                        alt="Selfie preview"
+                        className="w-40 h-40 rounded-full object-cover border-4 border-brand/20"
+                      />
+                      <p className="text-sm font-medium text-gray-700">Selfie captured</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelfieFile(null);
+                          setCameraOpen(true);
+                        }}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand/80"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        Retake Selfie
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCameraOpen(true)}
+                    className="w-full flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-gray-300 hover:border-brand/50 p-6 bg-white transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center">
+                      <Camera className="w-8 h-8 text-brand" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-700">Take a Selfie</p>
+                      <p className="text-xs text-gray-500 mt-1">Click to open camera and capture your face</p>
+                    </div>
+                  </button>
+                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Your selfie will be used for face verification during account approval.
+                </p>
+              </div>
+
+              <canvas ref={canvasRef} className="hidden" />
+
               <button
                 type="submit"
                 disabled={submitting}
@@ -599,6 +749,70 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   Verify
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Camera Modal */}
+      {cameraOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              setCameraOpen(false);
+              stopCamera();
+            }}
+            aria-label="Close camera"
+          />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Take a Selfie</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setCameraOpen(false);
+                  stopCamera();
+                }}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="relative bg-black aspect-[4/3] overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+              />
+              {/* Face guide overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-48 h-60 rounded-full border-4 border-white/50 border-dashed" />
+              </div>
+              <p className="absolute bottom-3 left-0 right-0 text-center text-white/80 text-sm font-medium drop-shadow-lg">
+                Position your face inside the oval
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-4 p-5">
+              <button
+                type="button"
+                onClick={() => setFacingMode((f) => (f === 'user' ? 'environment' : 'user'))}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Flip
+              </button>
+              <button
+                type="button"
+                onClick={captureSelfie}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-brand/90 transition-colors shadow-sm"
+              >
+                <Camera className="w-5 h-5" />
+                Capture
+              </button>
             </div>
           </div>
         </div>

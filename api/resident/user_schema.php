@@ -99,4 +99,15 @@ function api_ensure_resident_user_schema(mysqli $conn): void
     if ($needsProfilePhoto) {
         $conn->query("ALTER TABLE resident_user ADD COLUMN profile_photo VARCHAR(255) NULL");
     }
+
+    $needsSelfiePhoto = false;
+    $res = $conn->query("SHOW COLUMNS FROM resident_user LIKE 'selfie_photo'");
+    if ($res) {
+        $needsSelfiePhoto = $res->num_rows === 0;
+        $res->free();
+    }
+
+    if ($needsSelfiePhoto) {
+        $conn->query("ALTER TABLE resident_user ADD COLUMN selfie_photo VARCHAR(255) NULL AFTER back_id");
+    }
 }
