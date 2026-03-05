@@ -238,7 +238,7 @@ export default function CaptainDashboardPage({
     }>
   >([]);
   const [idPreview, setIdPreview] = useState<{ url: string; label: string } | null>(null);
-  const [complaintStatus, setComplaintStatus] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'CANCELLED'>('ALL');
+  const [complaintStatus, setComplaintStatus] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS'>('ALL');
   const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
   const [complaintsError, setComplaintsError] = useState<string | null>(null);
@@ -655,7 +655,7 @@ export default function CaptainDashboardPage({
     void loadCaseResolutions();
   }, [loadCaseResolutions]);
 
-  const handleComplaintAction = async (action: 'ACCEPT' | 'DECLINE') => {
+  const handleComplaintAction = async (action: 'ACCEPT') => {
     if (!selectedComplaint || complaintActionLoading) return;
     setComplaintActionError(null);
     setComplaintActionLoading(true);
@@ -771,12 +771,6 @@ export default function CaptainDashboardPage({
         iconBgClassName: 'bg-emerald-100',
       },
       {
-        title: 'Cancelled Complaints',
-        value: dashboardStats?.complaints.CANCELLED ?? 0,
-        icon: <FolderCheck className="h-5 w-5 text-orange-700" />,
-        iconBgClassName: 'bg-orange-100',
-      },
-      {
         title: 'Approved Hearings',
         value: dashboardStats?.hearings.APPROVED ?? 0,
         icon: <Calendar className="h-5 w-5 text-emerald-700" />,
@@ -787,12 +781,6 @@ export default function CaptainDashboardPage({
         value: dashboardStats?.hearings.PENDING ?? 0,
         icon: <Calendar className="h-5 w-5 text-blue-700" />,
         iconBgClassName: 'bg-blue-100',
-      },
-      {
-        title: 'Cancelled Hearings',
-        value: dashboardStats?.hearings.CANCELLED ?? 0,
-        icon: <Calendar className="h-5 w-5 text-orange-700" />,
-        iconBgClassName: 'bg-orange-100',
       },
     ],
     [dashboardStats]
@@ -906,17 +894,6 @@ export default function CaptainDashboardPage({
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Accepted Complaints</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveView('complaints');
-                    setComplaintStatus('CANCELLED');
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                  <span>Cancelled Complaints</span>
-                </button>
               </div>
             ) : null}
             <button
@@ -944,17 +921,6 @@ export default function CaptainDashboardPage({
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Pending Hearing Schedules</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveView('hearings');
-                    setHearingStatus('CANCELLED');
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-                  <span>Cancelled Hearing Schedules</span>
                 </button>
               </div>
             ) : null}
@@ -1707,14 +1673,6 @@ export default function CaptainDashboardPage({
                           <>
                             <button
                               type="button"
-                              onClick={() => handleComplaintAction('DECLINE')}
-                              disabled={complaintActionLoading}
-                              className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                            >
-                              {complaintActionLoading ? 'Processing…' : 'Decline'}
-                            </button>
-                            <button
-                              type="button"
                               onClick={() => handleComplaintAction('ACCEPT')}
                               disabled={complaintActionLoading}
                               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300"
@@ -1814,7 +1772,7 @@ export default function CaptainDashboardPage({
                             <th className="px-5 py-3">Tracking #</th>
                             <th className="px-5 py-3">Resident Name</th>
                             <th className="px-5 py-3">Title</th>
-                            <th className="px-5 py-3">Type</th>
+                            <th className="px-5 py-3">Category</th>
                             <th className="px-5 py-3">Sitio</th>
                             <th className="px-5 py-3">Status</th>
                             <th className="px-5 py-3">Submitted</th>
@@ -1829,7 +1787,7 @@ export default function CaptainDashboardPage({
                               <td className="px-5 py-3 text-gray-700">
                                 <div className="font-semibold text-gray-900">{row.complaint_title}</div>
                               </td>
-                              <td className="px-5 py-3 text-gray-700">{row.complaint_type}</td>
+                              <td className="px-5 py-3 text-gray-700">{row.complaint_category}</td>
                               <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
                               <td className="px-5 py-3">
                                 {row.has_hearing ? (
