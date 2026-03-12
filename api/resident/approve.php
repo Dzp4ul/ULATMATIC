@@ -46,6 +46,12 @@ $stmt->bind_param('si', $status, $id);
 $stmt->execute();
 $affected = $stmt->affected_rows;
 $stmt->close();
+
+// Notify resident about approval
+if ($affected > 0) {
+    require_once __DIR__ . '/../notifications/helpers.php';
+    create_notification($conn, $id, 'resident', 'Account Approved', 'Your resident account has been approved. You now have full access to the system.', 'resident', $id);
+}
 $conn->close();
 
 if ($affected <= 0) {

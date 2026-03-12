@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NotificationBell } from '../components/NotificationBell';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -1099,6 +1100,8 @@ export default function SecretaryDashboardPage({
                   placeholder="Search"
                 />
               </div>
+
+              <NotificationBell userId={secretaryId} userRole="secretary" />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

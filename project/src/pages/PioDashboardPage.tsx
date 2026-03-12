@@ -12,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { NotificationBell } from '../components/NotificationBell';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
@@ -461,6 +462,8 @@ export default function PioDashboardPage({
                   placeholder="Search"
                 />
               </div>
+
+              <NotificationBell userId={pioId} userRole="pio" />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

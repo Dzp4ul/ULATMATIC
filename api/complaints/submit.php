@@ -219,6 +219,16 @@ $stmt->bind_param(
 $stmt->execute();
 $id = $stmt->insert_id;
 $stmt->close();
+
+// Send notification to secretary & captain about new complaint
+require_once __DIR__ . '/../notifications/helpers.php';
+$notifTitle = 'New Complaint Filed';
+$notifMsg = 'A new complaint "' . $complaintTitle . '" (Tracking: ' . $trackingNumber . ') has been submitted.';
+$r = $conn->query("SELECT id FROM sec_user");
+if ($r) { while ($row = $r->fetch_assoc()) { create_notification($conn, (int)$row['id'], 'secretary', $notifTitle, $notifMsg, 'complaint', $id); } }
+$r2 = $conn->query("SELECT id FROM captain_user");
+if ($r2) { while ($row = $r2->fetch_assoc()) { create_notification($conn, (int)$row['id'], 'captain', $notifTitle, $notifMsg, 'complaint', $id); } }
+
 $conn->close();
 
 api_send_json(200, [

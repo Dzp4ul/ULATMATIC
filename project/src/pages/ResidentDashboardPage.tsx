@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 import { FileDropzone } from '../components/FileDropzone';
+import { NotificationBell } from '../components/NotificationBell';
 
 type ComplaintRow = {
   id: number;
@@ -941,7 +942,10 @@ export default function ResidentDashboardPage({
                 />
               </div>
 
-              <div className="ml-auto relative" ref={profileMenuRef}>
+              <div className="ml-auto flex items-center gap-3">
+                <NotificationBell userId={residentId} userRole="resident" />
+
+              <div className="relative" ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((v) => !v)}
@@ -1003,6 +1007,7 @@ export default function ResidentDashboardPage({
                     </div>
                   </div>
                 ) : null}
+              </div>
               </div>
             </div>
           </header>

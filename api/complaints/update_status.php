@@ -54,14 +54,22 @@ if ($action === 'DECLINE') {
     $stmt->execute();
     $affected = $stmt->affected_rows;
     $stmt->close();
-    $conn->close();
 
     if ($affected <= 0) {
+        $conn->close();
         api_send_json(404, [
             'ok' => false,
             'error' => 'Complaint not found or not pending',
         ]);
     }
+
+    // Notify resident about declined complaint
+    require_once __DIR__ . '/../notifications/helpers.php';
+    $cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $id")->fetch_assoc();
+    if ($cRow) {
+        create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Complaint Declined', 'Your complaint "' . $cRow['complaint_title'] . '" has been declined.', 'complaint', $id);
+    }
+    $conn->close();
 
     api_send_json(200, [
         'ok' => true,
@@ -137,6 +145,13 @@ try {
 
     if ($affected <= 0) {
         throw new RuntimeException('Complaint not found or not pending');
+    }
+
+    // Notify resident about accepted complaint
+    require_once __DIR__ . '/../notifications/helpers.php';
+    $cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $id")->fetch_assoc();
+    if ($cRow) {
+        create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Complaint Accepted', 'Your complaint "' . $cRow['complaint_title'] . '" has been accepted. Case Number: ' . $caseNumber, 'complaint', $id);
     }
 
     $conn->commit();

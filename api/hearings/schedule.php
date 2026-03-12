@@ -117,6 +117,14 @@ if (!$stmt->execute()) {
 
 $hearing_id = $stmt->insert_id;
 $stmt->close();
+
+// Notify the resident who filed the complaint about the hearing
+require_once __DIR__ . '/../notifications/helpers.php';
+$cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $complaint_id")->fetch_assoc();
+if ($cRow) {
+    create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Hearing Scheduled', 'A hearing for your complaint "' . $cRow['complaint_title'] . '" has been scheduled on ' . $scheduled_date . ' at ' . $scheduled_time . '.', 'hearing', $hearing_id);
+}
+
 $conn->close();
 
 api_send_json(200, [

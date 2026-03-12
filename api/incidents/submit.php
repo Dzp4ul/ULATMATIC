@@ -197,6 +197,16 @@ $stmt->bind_param(
 $stmt->execute();
 $id = $stmt->insert_id;
 $stmt->close();
+
+// Notify chief & pio about new incident
+require_once __DIR__ . '/../notifications/helpers.php';
+$notifTitle = 'New Incident Reported';
+$notifMsg = 'A new ' . $incidentType . ' incident (Tracking: ' . $trackingNumber . ') has been reported in ' . $sitio . '.';
+$r = $conn->query("SELECT id FROM chief_user");
+if ($r) { while ($row = $r->fetch_assoc()) { create_notification($conn, (int)$row['id'], 'chief', $notifTitle, $notifMsg, 'incident', $id); } }
+$r2 = $conn->query("SELECT id FROM pio_user");
+if ($r2) { while ($row = $r2->fetch_assoc()) { create_notification($conn, (int)$row['id'], 'pio', $notifTitle, $notifMsg, 'incident', $id); } }
+
 $conn->close();
 
 api_send_json(200, [
