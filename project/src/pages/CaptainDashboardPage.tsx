@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NotificationBell } from '../components/NotificationBell';
+import { NavSearch, type NavItem } from '../components/NavSearch';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -287,6 +288,66 @@ export default function CaptainDashboardPage({
   const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
   const [caseResolutionFilterMethod, setCaseResolutionFilterMethod] = useState('ALL');
 
+  // Data-aware search items
+  const navItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    residents.forEach((r) => {
+      const name = [r.fname, r.midname, r.lname].filter(Boolean).join(' ');
+      items.push({
+        label: name,
+        category: 'Residents/Users > Pending Residents',
+        detail: `${r.email} · ${r.sitio}`,
+        action: () => { setActiveView('residents'); setResidentsTab('pending'); },
+        keywords: [r.email, r.sitio],
+      });
+    });
+
+    approvedResidents.forEach((r) => {
+      const name = [r.fname, r.midname, r.lname].filter(Boolean).join(' ');
+      items.push({
+        label: name,
+        category: 'Residents/Users > Approved Residents',
+        detail: `${r.email} · ${r.sitio}`,
+        action: () => { setActiveView('residents'); setResidentsTab('approved'); },
+        keywords: [r.email, r.sitio],
+      });
+    });
+
+    complaints.forEach((c) => {
+      items.push({
+        label: `${c.complaint_title}${c.tracking_number ? ` (${c.tracking_number})` : ''}`,
+        category: `Complaints > ${c.status === 'PENDING' ? 'Pending' : 'Accepted'} Complaints`,
+        detail: [c.complaint_category, c.sitio, c.respondent_name].filter(Boolean).join(' · '),
+        action: () => { setActiveView('complaints'); setComplaintStatus(c.status === 'PENDING' ? 'PENDING' : 'IN_PROGRESS'); },
+        keywords: [c.tracking_number ?? '', c.complaint_category, c.sitio, c.respondent_name ?? '', c.resident_name ?? ''],
+      });
+    });
+
+    hearings.forEach((h) => {
+      items.push({
+        label: `${h.complaint_title}${h.tracking_number ? ` (${h.tracking_number})` : ''}`,
+        category: `Hearing Schedules > ${h.status}`,
+        detail: [h.scheduled_date, h.location, h.respondent_name].filter(Boolean).join(' · '),
+        action: () => { setActiveView('hearings'); },
+        keywords: [h.tracking_number ?? '', h.case_number ?? '', h.respondent_name ?? '', h.scheduled_date],
+      });
+    });
+
+    caseResolutionHearings.forEach((h) => {
+      const resolved = !!h.resolved_at;
+      items.push({
+        label: `${h.complaint_title}${h.case_number ? ` (${h.case_number})` : ''}`,
+        category: `Case Resolutions > ${resolved ? 'Resolved' : 'Unresolved'}`,
+        detail: [h.resolution_type, h.resolution_method].filter(Boolean).join(' · ') || undefined,
+        action: () => { setActiveView('case_resolutions'); setCaseResolutionFilter(resolved ? 'resolved' : 'unresolved'); },
+        keywords: [h.tracking_number ?? '', h.case_number ?? '', h.resolution_type ?? '', h.resolution_method ?? ''],
+      });
+    });
+
+    return items;
+  }, [residents, approvedResidents, complaints, hearings, caseResolutionHearings]);
+
   // Filtered data
   const residentSitioOptions = useMemo(() => {
     const all = [...residents, ...approvedResidents].map(r => r.sitio).filter(Boolean);
@@ -457,6 +518,44 @@ export default function CaptainDashboardPage({
       active = false;
     };
   }, [onNavigate]);
+
+  // Preload all data on mount so search works from any view
+  useEffect(() => {
+    let active = true;
+    const preload = async () => {
+      try {
+        const [pendingRes, approvedRes, complaintsRes, hearingsRes, caseRes] = await Promise.all([
+          fetch('http://localhost/ULATMATIC/api/resident/list_pending.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+          fetch('http://localhost/ULATMATIC/api/resident/list_approved.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }),
+          fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
+          fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
+        ]);
+        if (!active) return;
+        const [pendingData, approvedData, complaintsData, hearingsData, caseData] = await Promise.all([
+          pendingRes.json(), approvedRes.json(), complaintsRes.json(), hearingsRes.json(), caseRes.json(),
+        ]);
+        if (!active) return;
+        if (pendingData.ok && Array.isArray(pendingData.residents) && residents.length === 0) {
+          setResidents(pendingData.residents.map((r: any) => ({ ...r, id: Number(r.id) })));
+        }
+        if (approvedData.ok && Array.isArray(approvedData.residents) && approvedResidents.length === 0) {
+          setApprovedResidents(approvedData.residents.map((r: any) => ({ ...r, id: Number(r.id) })));
+        }
+        if (complaintsData.ok && Array.isArray(complaintsData.complaints) && complaints.length === 0) {
+          setComplaints(complaintsData.complaints.map((c: any) => ({ ...c, id: Number(c.id), resident_id: Number(c.resident_id) })));
+        }
+        if (hearingsData.ok && Array.isArray(hearingsData.hearings) && hearings.length === 0) {
+          setHearings(hearingsData.hearings);
+        }
+        if (caseData.ok && Array.isArray(caseData.hearings) && caseResolutionHearings.length === 0) {
+          setCaseResolutionHearings(caseData.hearings);
+        }
+      } catch { /* ignore */ }
+    };
+    void preload();
+    return () => { active = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch dashboard stats
   useEffect(() => {
@@ -1084,15 +1183,7 @@ export default function CaptainDashboardPage({
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="relative flex-1">
-                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                  <Search className="h-4 w-4 text-white/80" />
-                </div>
-                <input
-                  className="h-10 w-full rounded-lg bg-white/15 pl-10 pr-3 text-sm text-white placeholder:text-white/70 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/25"
-                  placeholder="Search"
-                />
-              </div>
+              <NavSearch items={navItems} />
 
               <NotificationBell userId={captainId} userRole="captain" />
 

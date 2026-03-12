@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 import { FileDropzone } from '../components/FileDropzone';
+import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
 
 type ComplaintRow = {
@@ -438,6 +439,42 @@ export default function ResidentDashboardPage({
   const [incidentFilterStatus, setIncidentFilterStatus] = useState('ALL');
   const [incidentFilterCategory, setIncidentFilterCategory] = useState('ALL');
 
+  const navItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    complaints.forEach((c) => {
+      items.push({
+        label: `${c.complaint_title}${c.tracking_number ? ` (${c.tracking_number})` : ''}`,
+        category: `My Complaints > ${c.status}`,
+        detail: [c.complaint_category, c.sitio, c.respondent_name].filter(Boolean).join(' · '),
+        action: () => setActiveView('my_complaints'),
+        keywords: [c.tracking_number ?? '', c.complaint_category, c.sitio, c.respondent_name ?? ''],
+      });
+    });
+
+    hearings.forEach((h) => {
+      items.push({
+        label: `${h.complaint_title}${h.tracking_number ? ` (${h.tracking_number})` : ''}`,
+        category: `Hearing Schedules > ${h.status}`,
+        detail: [h.scheduled_date, h.case_number].filter(Boolean).join(' · '),
+        action: () => setActiveView('hearing_schedules'),
+        keywords: [h.tracking_number ?? '', h.case_number ?? '', h.scheduled_date],
+      });
+    });
+
+    incidents.forEach((inc) => {
+      items.push({
+        label: `${inc.incident_type}${inc.tracking_number ? ` (${inc.tracking_number})` : ''}`,
+        category: `My Incident Reports > ${inc.status}`,
+        detail: [inc.incident_category, inc.sitio].filter(Boolean).join(' · '),
+        action: () => setActiveView('my_incidents'),
+        keywords: [inc.tracking_number ?? '', inc.incident_category, inc.sitio],
+      });
+    });
+
+    return items;
+  }, [complaints, hearings, incidents]);
+
   /* ── Filtered data ── */
   const filteredComplaints = useMemo(() => {
     let list = complaints;
@@ -580,6 +617,37 @@ export default function ResidentDashboardPage({
       active = false;
     };
   }, [onNavigate]);
+
+  // Preload all data on mount so search works from any view
+  useEffect(() => {
+    if (!residentId) return;
+    let active = true;
+    const preload = async () => {
+      try {
+        const [complaintsRes, hearingsRes, incidentsRes] = await Promise.all([
+          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
+          fetch(`http://localhost/ULATMATIC/api/hearings/list.php?resident_id=${residentId}`),
+          fetch('http://localhost/ULATMATIC/api/incidents/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
+        ]);
+        if (!active) return;
+        const [complaintsData, hearingsData, incidentsData] = await Promise.all([
+          complaintsRes.json(), hearingsRes.json(), incidentsRes.json(),
+        ]);
+        if (!active) return;
+        if (complaintsData.ok && Array.isArray(complaintsData.complaints) && complaints.length === 0) {
+          setComplaints(complaintsData.complaints.map((c: any) => ({ ...c, id: Number(c.id), resident_id: Number(c.resident_id) })));
+        }
+        if (hearingsData.ok && Array.isArray(hearingsData.hearings) && hearings.length === 0) {
+          setHearings(hearingsData.hearings);
+        }
+        if (incidentsData.ok && Array.isArray(incidentsData.incidents) && incidents.length === 0) {
+          setIncidents(incidentsData.incidents);
+        }
+      } catch { /* ignore */ }
+    };
+    void preload();
+    return () => { active = false; };
+  }, [residentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Incident evidence preview
   useEffect(() => {
@@ -933,14 +1001,7 @@ export default function ResidentDashboardPage({
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/80" />
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="h-10 w-full rounded-lg bg-white/15 pl-10 pr-3 text-sm text-white placeholder:text-white/70 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/25"
-                />
-              </div>
+              <NavSearch items={navItems} />
 
               <div className="ml-auto flex items-center gap-3">
                 <NotificationBell userId={residentId} userRole="resident" />

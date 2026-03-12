@@ -9,10 +9,10 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Search,
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
@@ -125,6 +125,15 @@ export default function ChiefDashboardPage({
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [incidentActionId, setIncidentActionId] = useState<number | null>(null);
   const [summary, setSummary] = useState({ pending: 0, resolved: 0, transferred: 0 });
+  const navItems = useMemo<NavItem[]>(() => {
+    return incidents.map((inc) => ({
+      label: `${inc.incident_type}${inc.tracking_number ? ` (${inc.tracking_number})` : ''}`,
+      category: `Incident Reports > ${inc.status}`,
+      detail: [inc.incident_category, inc.sitio].filter(Boolean).join(' · '),
+      action: () => { setActiveView('incidents'); setIncidentStatus(inc.status as IncidentStatus); },
+      keywords: [inc.tracking_number ?? '', inc.incident_category, inc.sitio, inc.description],
+    }));
+  }, [incidents]);
 
   const loadSummary = async () => {
     try {
@@ -210,6 +219,25 @@ export default function ChiefDashboardPage({
       active = false;
     };
   }, [onNavigate]);
+
+  // Preload incidents on mount so search works from any view
+  useEffect(() => {
+    let active = true;
+    const preload = async () => {
+      try {
+        const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ALL', all: true }),
+        });
+        const data = await res.json();
+        if (active && data.ok && Array.isArray(data.incidents) && incidents.length === 0) {
+          setIncidents(data.incidents.map((r: any) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
+        }
+      } catch { /* ignore */ }
+    };
+    void preload();
+    return () => { active = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!profilePhotoFile) {
@@ -458,15 +486,7 @@ export default function ChiefDashboardPage({
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="relative flex-1">
-                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                  <Search className="h-4 w-4 text-white/80" />
-                </div>
-                <input
-                  className="h-10 w-full rounded-lg bg-white/15 pl-10 pr-3 text-sm text-white placeholder:text-white/70 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/25"
-                  placeholder="Search"
-                />
-              </div>
+              <NavSearch items={navItems} />
 
               <NotificationBell userId={chiefId} userRole="chief" />
 
