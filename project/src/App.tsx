@@ -7,6 +7,7 @@ import SecretaryDashboardPage from './pages/SecretaryDashboardPage';
 import CaptainDashboardPage from './pages/CaptainDashboardPage';
 import ChiefDashboardPage from './pages/ChiefDashboardPage';
 import PioDashboardPage from './pages/PioDashboardPage';
+import SuperAdminDashboardPage from './pages/SuperAdminDashboardPage';
 import TrackStatusPage from './pages/TrackStatusPage';
 import { type Route, getRouteFromPathname } from './router';
 
@@ -37,6 +38,10 @@ function App() {
 
   if (route === 'signin') {
     return <SignInPage onNavigate={navigate} />;
+  }
+
+  if (route === 'superadmin') {
+    return <SuperAdminDashboardPage onNavigate={navigate} />;
   }
 
   if (route === 'secretary') {

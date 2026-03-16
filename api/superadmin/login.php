@@ -31,11 +31,10 @@ if ($email === '' || $password === '') {
 }
 
 $conn = api_db();
-api_ensure_pio_user_schema($conn);
+api_ensure_superadmin_user_schema($conn);
 
-$stmt = $conn->prepare('SELECT id, pio_name, pio_email, pio_pass FROM pio_user WHERE pio_email = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT id, superadmin_name, superadmin_email, superadmin_pass FROM superadmin_user WHERE superadmin_email = ? LIMIT 1');
 if (!$stmt) {
-    $conn->close();
     api_send_json(500, [
         'ok' => false,
         'error' => 'Query prepare failed',
@@ -49,9 +48,9 @@ $user = $result ? $result->fetch_assoc() : null;
 $stmt->close();
 
 // Check status column if it exists
-$statusCheck = $conn->query("SHOW COLUMNS FROM pio_user LIKE 'status'");
+$statusCheck = $conn->query("SHOW COLUMNS FROM superadmin_user LIKE 'status'");
 if ($statusCheck && $statusCheck->num_rows > 0 && $user) {
-    $stmtS = $conn->prepare('SELECT status FROM pio_user WHERE id = ? LIMIT 1');
+    $stmtS = $conn->prepare('SELECT status FROM superadmin_user WHERE id = ? LIMIT 1');
     if ($stmtS) {
         $stmtS->bind_param('i', $user['id']);
         $stmtS->execute();
@@ -73,16 +72,9 @@ if (!$user) {
     ]);
 }
 
-$storedPass = (string)($user['pio_pass'] ?? '');
-$ok = false;
+$storedPass = (string)($user['superadmin_pass'] ?? '');
 
-if ($storedPass !== '' && (strpos($storedPass, '$2y$') === 0 || strpos($storedPass, '$2a$') === 0 || strpos($storedPass, '$argon2') === 0)) {
-    $ok = password_verify($password, $storedPass);
-} else {
-    $ok = hash_equals($storedPass, $password);
-}
-
-if (!$ok) {
+if (!password_verify($password, $storedPass) && $storedPass !== $password) {
     api_send_json(401, [
         'ok' => false,
         'error' => 'Invalid credentials',
@@ -92,9 +84,9 @@ if (!$ok) {
 api_send_json(200, [
     'ok' => true,
     'user' => [
-        'id' => (int)($user['id'] ?? 0),
-        'pio_name' => (string)($user['pio_name'] ?? ''),
-        'pio_email' => (string)($user['pio_email'] ?? ''),
-        'role' => 'PIO',
+        'id' => (int)$user['id'],
+        'superadmin_name' => (string)$user['superadmin_name'],
+        'superadmin_email' => (string)$user['superadmin_email'],
+        'role' => 'SUPERADMIN',
     ],
 ]);

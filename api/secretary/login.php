@@ -49,6 +49,23 @@ $stmt->execute();
 $result = $stmt->get_result();
 $user = $result ? $result->fetch_assoc() : null;
 $stmt->close();
+
+// Check status column if it exists
+$statusCheck = $conn->query("SHOW COLUMNS FROM sec_user LIKE 'status'");
+if ($statusCheck && $statusCheck->num_rows > 0 && $user) {
+    $stmtS = $conn->prepare('SELECT status FROM sec_user WHERE id = ? LIMIT 1');
+    if ($stmtS) {
+        $stmtS->bind_param('i', $user['id']);
+        $stmtS->execute();
+        $sRow = $stmtS->get_result()->fetch_assoc();
+        $stmtS->close();
+        if ($sRow && ($sRow['status'] ?? 'active') === 'inactive') {
+            $conn->close();
+            api_send_json(403, ['ok' => false, 'error' => 'Your account has been deactivated. Please contact the administrator.']);
+        }
+    }
+}
+
 $conn->close();
 
 if (!$user) {

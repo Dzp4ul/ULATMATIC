@@ -27,4 +27,10 @@ function api_ensure_captain_user_schema(mysqli $conn): void
     if ($needsProfilePhoto) {
         $conn->query("ALTER TABLE captain_user ADD COLUMN profile_photo VARCHAR(255) NULL");
     }
+
+    $res2 = $conn->query("SHOW COLUMNS FROM captain_user LIKE 'status'");
+    if ($res2 && $res2->num_rows === 0) {
+        $conn->query("ALTER TABLE captain_user ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'");
+    }
+    if ($res2) $res2->free();
 }
