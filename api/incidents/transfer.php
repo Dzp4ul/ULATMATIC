@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/../complaints/schema.php';
+require_once __DIR__ . '/../notifications/helpers.php';
 
 api_apply_cors();
 
@@ -22,11 +23,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $body = api_read_json_body();
 $id = (int)($body['id'] ?? 0);
+$assignedRole = strtolower(trim((string)($body['assigned_role'] ?? '')));
 
 if ($id <= 0) {
     api_send_json(400, [
         'ok' => false,
         'error' => 'id is required',
+    ]);
+}
+
+if ($assignedRole === '' || !in_array($assignedRole, ['secretary', 'captain'], true)) {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'assigned_role must be secretary or captain',
     ]);
 }
 
@@ -57,11 +66,19 @@ if (!$incident) {
     ]);
 }
 
-if (($incident['status'] ?? '') === 'TRANSFERRED') {
+if (strtoupper((string)($incident['status'] ?? '')) === 'TRANSFERRED') {
     $conn->close();
     api_send_json(400, [
         'ok' => false,
         'error' => 'Incident already transferred',
+    ]);
+}
+
+if (strtoupper((string)($incident['status'] ?? '')) !== 'PENDING') {
+    $conn->close();
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Only pending incidents can be transferred',
     ]);
 }
 
@@ -82,12 +99,13 @@ if ($respondentAddress === '') {
 }
 
 $status = 'PENDING';
+$assignedRoleVal = $assignedRole;
 $respondentNameVal = null;
 $witnessVal = $incident['witness'] ?? null;
 $evidencePath = $incident['evidence_path'] ?? null;
 $evidenceMime = $incident['evidence_mime'] ?? null;
 
-$insert = $conn->prepare('INSERT INTO complaints (resident_id, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$insert = $conn->prepare('INSERT INTO complaints (resident_id, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status, assigned_role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 if (!$insert) {
     $conn->close();
     api_send_json(500, [
@@ -97,7 +115,7 @@ if (!$insert) {
 }
 
 $insert->bind_param(
-    'isssssssssss',
+    'issssssssssss',
     $residentId,
     $complaintTitle,
     $incident['incident_type'],
@@ -109,13 +127,25 @@ $insert->bind_param(
     $witnessVal,
     $evidencePath,
     $evidenceMime,
-    $status
+    $status,
+    $assignedRoleVal
 );
 $insert->execute();
 $complaintId = $insert->insert_id;
 $insert->close();
 
-$update = $conn->prepare("UPDATE incidents SET status = 'TRANSFERRED', transferred_at = NOW() WHERE id = ?");
+$notifTitle = 'Incident Transferred';
+$notifMsg = 'Incident "' . ($incidentType !== '' ? $incidentType : ('#' . $id)) . '" has been transferred to your complaint queue.';
+$recipientTable = $assignedRole === 'secretary' ? 'sec_user' : 'captain_user';
+$recipientResult = $conn->query("SELECT id FROM {$recipientTable}");
+if ($recipientResult) {
+    while ($recipient = $recipientResult->fetch_assoc()) {
+        create_notification($conn, (int)($recipient['id'] ?? 0), $assignedRole, $notifTitle, $notifMsg, 'complaint', (int)$complaintId);
+    }
+    $recipientResult->free();
+}
+
+$update = $conn->prepare("UPDATE incidents SET status = 'TRANSFERRED', transferred_at = NOW() WHERE id = ? AND UPPER(status) = 'PENDING'");
 if (!$update) {
     $conn->close();
     api_send_json(500, [
@@ -126,7 +156,17 @@ if (!$update) {
 
 $update->bind_param('i', $id);
 $update->execute();
+$updatedRows = $update->affected_rows;
 $update->close();
+
+if ($updatedRows <= 0) {
+    $conn->close();
+    api_send_json(409, [
+        'ok' => false,
+        'error' => 'Incident status changed. Please refresh and try again.',
+    ]);
+}
+
 $conn->close();
 
 api_send_json(200, [
@@ -134,4 +174,5 @@ api_send_json(200, [
     'id' => $id,
     'complaint_id' => (int)$complaintId,
     'status' => 'TRANSFERRED',
+    'assigned_role' => $assignedRole,
 ]);

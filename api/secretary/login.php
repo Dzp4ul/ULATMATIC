@@ -77,7 +77,15 @@ if (!$user) {
 
 $storedPass = (string)($user['sec_pass'] ?? '');
 
-if ($storedPass !== $password) {
+$ok = false;
+
+if ($storedPass !== '' && (strpos($storedPass, '$2y$') === 0 || strpos($storedPass, '$2a$') === 0 || strpos($storedPass, '$argon2') === 0)) {
+    $ok = password_verify($password, $storedPass);
+} else {
+    $ok = hash_equals($storedPass, $password);
+}
+
+if (!$ok) {
     api_send_json(401, [
         'ok' => false,
         'error' => 'Invalid credentials',

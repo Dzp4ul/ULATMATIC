@@ -13,16 +13,15 @@ function api_send_json(int $statusCode, array $payload): void
 function api_apply_cors(): void
 {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    $allowed = [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-    ];
+    $originParts = $origin !== '' ? parse_url($origin) : false;
+    $host = is_array($originParts) ? (string)($originParts['host'] ?? '') : '';
+    $scheme = is_array($originParts) ? (string)($originParts['scheme'] ?? '') : '';
 
-    if (in_array($origin, $allowed, true)) {
+    if ($scheme === 'http' && ($host === 'localhost' || $host === '127.0.0.1')) {
         header('Access-Control-Allow-Origin: ' . $origin);
     }
 
-    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
 }
 

@@ -1,0 +1,132 @@
+Test Case ID,Title,Objective,Preconditions,Test Steps,Test Data,Expected Result,Actual Result,Status
+TC001,Verify Resident Registration (Valid Data),Ensure resident can create an account with valid information,User is on Resident Sign-Up page,"1. Open Resident Sign-Up page
+2. Fill required personal details
+3. Upload valid Barangay ID and face image
+4. Enter strong password and confirmation
+5. Click Create Account",Name: Juan Cruz; Email: juancruz@email.com; Phone: 09123456789; Password: Qwerty_12345; ID: valid image; Face: valid capture,Resident account is created and user is redirected to sign-in,Not Executed,Not Run
+TC002,Validate Required Fields in Registration,Ensure required fields are enforced in resident registration,User is on Resident Sign-Up page,"1. Open Resident Sign-Up page
+2. Leave one or more required fields empty
+3. Click Create Account",Missing First Name and Phone Number,System blocks submission and shows required field validation messages,Not Executed,Not Run
+TC003,Validate Password Strength in Registration,Ensure weak passwords are rejected,User is on Resident Sign-Up page,"1. Open Resident Sign-Up page
+2. Enter weak password
+3. Submit form",Password: password123,System rejects password and shows policy message (uppercase lowercase number symbol),Not Executed,Not Run
+TC004,Validate Password Confirmation Mismatch,Ensure confirm password must match password,User is on Resident Sign-Up page,"1. Fill all required fields
+2. Enter different values in Password and Confirm Password
+3. Submit form",Password: Qwerty_12345; Confirm: Qwerty_123,Submission is blocked and mismatch validation message is displayed,Not Executed,Not Run
+TC005,Prevent Duplicate Resident Email Registration,Ensure system does not allow duplicate resident email,Existing resident account with email already exists,"1. Open Resident Sign-Up page
+2. Enter existing email with new profile data
+3. Submit form",Email: existingresident@email.com,Registration fails with duplicate email message,Not Executed,Not Run
+TC006,Resident Login (Valid Credentials),Ensure resident can sign in with valid credentials,Resident account exists and is active,"1. Open Resident Login page
+2. Enter valid credentials
+3. Click Login",Email: resident@email.com; Password: Qwerty_12345,Resident is authenticated and redirected to resident dashboard/home,Not Executed,Not Run
+TC007,Resident Login (Invalid Credentials),Ensure authentication fails with wrong credentials,Resident login page is accessible,"1. Open Resident Login page
+2. Enter invalid password
+3. Click Login",Email: resident@email.com; Password: WrongPass_1,System denies login and displays invalid credentials message,Not Executed,Not Run
+TC008,Forgot Password - Send OTP,Ensure OTP is sent for valid account recovery request,Resident account with registered email exists,"1. Open Forgot Password page
+2. Enter registered email
+3. Click Send OTP",Email: resident@email.com,System generates and sends OTP to registered contact and shows next step prompt,Not Executed,Not Run
+TC009,Forgot Password - Verify OTP,Ensure only valid OTP can proceed to password reset,OTP was requested and not expired,"1. Enter received OTP
+2. Click Verify",OTP: valid 6-digit code,System accepts OTP and allows access to reset password page,Not Executed,Not Run
+TC010,Forgot Password - Reject Invalid OTP,Ensure invalid or expired OTP is rejected,OTP verification page is open,"1. Enter invalid or expired OTP
+2. Click Verify",OTP: 000000,System blocks verification and shows invalid/expired OTP message,Not Executed,Not Run
+TC011,Reset Password (Valid New Password),Ensure user can reset password after OTP verification,OTP has been successfully verified,"1. Open reset password form
+2. Enter strong new password and confirm
+3. Submit",New Password: NewStrong_123!,Password is updated and user can log in using new password,Not Executed,Not Run
+TC012,View Resident Profile,Ensure resident can view profile information,Resident is authenticated,"1. Login as resident
+2. Open profile page",Resident account data,Profile page loads and displays current resident details correctly,Not Executed,Not Run
+TC013,Update Resident Profile (Valid Data),Ensure resident profile updates are saved,Resident is authenticated and on profile page,"1. Edit profile fields
+2. Save changes",Phone: 09987654321; Address: Poblacion,System saves updates and shows success message,Not Executed,Not Run
+TC014,Resident List Pending Applications,Ensure pending residents can be listed for review,Reviewer/admin role with access is authenticated,"1. Open pending residents list
+2. Observe list data",N/A,System returns pending resident records with required details,Not Executed,Not Run
+TC015,Approve Resident Application,Ensure pending resident can be approved,Pending resident exists and reviewer has permission,"1. Open pending residents list
+2. Select resident
+3. Click Approve",Resident ID: pending applicant,System changes resident status to approved and logs action,Not Executed,Not Run
+TC016,Decline Resident Application,Ensure pending resident can be declined with reason,Pending resident exists and reviewer has permission,"1. Open pending residents list
+2. Select resident
+3. Click Decline
+4. Enter reason",Reason: Invalid ID document,System marks application as declined and stores reason,Not Executed,Not Run
+TC017,Captain Login (Valid Credentials),Ensure captain role can authenticate,Captain account exists and active,"1. Open Captain Login
+2. Enter valid credentials
+3. Login",Username/Email: captain1; Password: Captain_123!,Captain is redirected to captain dashboard,Not Executed,Not Run
+TC018,Chief Login (Valid Credentials),Ensure chief role can authenticate,Chief account exists and active,"1. Open Chief Login
+2. Enter valid credentials
+3. Login",Username/Email: chief1; Password: Chief_123!,Chief is redirected to chief dashboard,Not Executed,Not Run
+TC019,PIO Login (Valid Credentials),Ensure PIO role can authenticate,PIO account exists and active,"1. Open PIO Login
+2. Enter valid credentials
+3. Login",Username/Email: pio1; Password: Pio_123!,PIO is redirected to PIO dashboard,Not Executed,Not Run
+TC020,Secretary Login (Valid Credentials),Ensure secretary role can authenticate,Secretary account exists and active,"1. Open Secretary Login
+2. Enter valid credentials
+3. Login",Username/Email: secretary1; Password: Secretary_123!,Secretary is redirected to secretary dashboard,Not Executed,Not Run
+TC021,Superadmin Login (Valid Credentials),Ensure superadmin can authenticate,Superadmin account exists and active,"1. Open Superadmin Login
+2. Enter valid credentials
+3. Login",Username/Email: superadmin; Password: SuperAdmin_123!,Superadmin is redirected to admin dashboard,Not Executed,Not Run
+TC022,Role Access Restriction (Unauthorized Endpoint),Ensure users cannot access endpoints of other roles,Resident is logged in,"1. Login as resident
+2. Call restricted endpoint (e.g. superadmin list users)",GET /api/superadmin/list_users.php,System returns unauthorized/forbidden response,Not Executed,Not Run
+TC023,Create Complaint (Valid Submission),Ensure resident can submit complaint with required data,Resident is authenticated,"1. Open complaint form
+2. Fill required complaint details
+3. Submit",Category: Noise; Description: Loud music at night; Location: Purok 2,Complaint is stored with generated tracking/reference ID,Not Executed,Not Run
+TC024,Validate Complaint Required Fields,Ensure complaint form validation works,Resident is authenticated and on complaint form,"1. Leave complaint description empty
+2. Submit",Description: empty,System blocks submission and displays validation message,Not Executed,Not Run
+TC025,List Complaints by Role,Ensure authorized roles can retrieve complaint list,Authorized staff user is authenticated,"1. Login as staff role
+2. Open complaint list page/API",Filter: status=open,System returns complaint list with correct fields and pagination/filter behavior,Not Executed,Not Run
+TC026,Track Complaint by Reference,Ensure resident can track complaint status,Valid complaint reference exists,"1. Open track complaint page
+2. Enter reference ID
+3. Search",Reference ID: CMP-2026-0001,System displays current complaint status and basic details,Not Executed,Not Run
+TC027,Update Complaint Status,Ensure authorized role can update complaint status,Complaint exists and staff has permission,"1. Open complaint details
+2. Change status
+3. Save",Status: In Progress,System updates complaint status and records timestamp/updater,Not Executed,Not Run
+TC028,Submit Incident (Valid Data),Ensure incident report can be submitted,Authorized reporter is authenticated,"1. Open incident submit form
+2. Fill details
+3. Submit",Type: Theft; Description: Lost motorcycle; Location: Zone 1,Incident is saved with incident ID and default status,Not Executed,Not Run
+TC029,List Incidents,Ensure incident list endpoint works for authorized users,Authorized user is authenticated,"1. Open incidents list
+2. Apply status filter",Filter: unresolved,System returns matching incidents list with complete fields,Not Executed,Not Run
+TC030,Transfer Incident,Ensure incident can be transferred to another office/role,Incident exists and transfer target is valid,"1. Open incident details
+2. Select transfer target
+3. Confirm transfer",Transfer To: Chief,System updates assignment/owner and logs transfer action,Not Executed,Not Run
+TC031,Resolve Incident,Ensure authorized user can resolve incident,Incident is open and assigned to current role,"1. Open assigned incident
+2. Enter resolution notes
+3. Mark resolved",Resolution: Settled after mediation,System updates incident status to resolved and stores resolution details,Not Executed,Not Run
+TC032,Schedule Hearing,Ensure hearing schedule can be created for complaint/incident,Case exists and scheduler is authorized,"1. Open hearings schedule form
+2. Set date time venue parties
+3. Save",Case ID: CMP-2026-0001; Date: 2026-04-01 09:00; Venue: Barangay Hall,Hearing record is created and linked to case,Not Executed,Not Run
+TC033,List Hearings,Ensure hearing list retrieval works,Authorized user is authenticated,"1. Open hearing list
+2. Filter by date/status",Status: scheduled,System returns hearings with correct schedule details,Not Executed,Not Run
+TC034,Resolve Hearing Outcome,Ensure hearing resolution can be recorded,Hearing exists and user is authorized,"1. Open hearing details
+2. Enter outcome/notes
+3. Mark resolved",Outcome: Amicable settlement,System saves hearing outcome and updates hearing status,Not Executed,Not Run
+TC035,Generate KP Report,Ensure KP report endpoint generates report data,Authorized role is authenticated and data exists,"1. Open KP report module
+2. Select date range
+3. Generate report",Date Range: 2026-01-01 to 2026-03-31,System generates report summary/details for selected period,Not Executed,Not Run
+TC036,List Notifications,Ensure user can retrieve unread/read notifications,Authenticated user with notifications exists,"1. Login
+2. Open notifications list",N/A,System returns notifications sorted by newest with read status,Not Executed,Not Run
+TC037,Mark Single Notification as Read,Ensure one notification can be marked as read,Authenticated user has unread notification,"1. Open notifications
+2. Click one unread item",Notification ID: 101,System marks selected notification as read,Not Executed,Not Run
+TC038,Mark All Notifications as Read,Ensure all unread notifications can be marked as read,Authenticated user has multiple unread notifications,"1. Open notifications
+2. Click Mark All Read",N/A,System marks all unread notifications as read and updates counts,Not Executed,Not Run
+TC039,View Dashboard Statistics,Ensure shared dashboard stats endpoint returns aggregated values,Authorized user is authenticated,"1. Open dashboard
+2. Observe stats widgets",N/A,System displays correct totals (complaints incidents hearings pending items),Not Executed,Not Run
+TC040,Superadmin Create User,Ensure superadmin can create role-based users,Superadmin is authenticated,"1. Open user management
+2. Click create user
+3. Fill account details
+4. Save",Role: Secretary; Email: sec2@email.com; Password: Temp_1234,New user account is created and appears in user list,Not Executed,Not Run
+TC041,Superadmin Update User,Ensure superadmin can edit user details,User exists and superadmin is authenticated,"1. Open users list
+2. Edit user profile/role
+3. Save",Change role from PIO to Chief,System saves user updates and shows confirmation,Not Executed,Not Run
+TC042,Superadmin Toggle User Status,Ensure superadmin can activate/deactivate user account,User exists and superadmin is authenticated,"1. Open users list
+2. Toggle account status",Deactivate user: pio1,System updates active status and prevents deactivated user login,Not Executed,Not Run
+TC043,Superadmin Delete User,Ensure superadmin can delete user account safely,User exists and not protected system account,"1. Open users list
+2. Select user
+3. Click delete
+4. Confirm",User: test_staff_01,System removes/deactivates user per policy and updates user list,Not Executed,Not Run
+TC044,Superadmin List Users,Ensure user listing endpoint returns all managed accounts,Superadmin is authenticated,"1. Open user list page/API
+2. Apply role filter",Role Filter: Secretary,System returns users matching selected role and metadata,Not Executed,Not Run
+TC045,Update Role Profile (Captain/Chief/PIO/Secretary/Superadmin),Ensure each role can update own profile,Role account is authenticated and on profile page,"1. Login as role user
+2. Open profile
+3. Change allowed fields
+4. Save",Phone and display name changes,Profile updates persist and are visible on reload,Not Executed,Not Run
+TC046,Session Logout,Ensure logout invalidates session/token and blocks protected pages,User is authenticated,"1. Click Logout
+2. Try opening protected route directly",N/A,User is redirected to login and protected APIs reject old session/token,Not Executed,Not Run
+TC047,File Upload Validation (Invalid Type),Ensure invalid upload formats are rejected,User is on upload form (ID/evidence/profile),"1. Select disallowed file type
+2. Submit upload",File: malware.exe,System rejects upload and returns allowed file type message,Not Executed,Not Run
+TC048,File Upload Validation (Oversized File),Ensure upload size limits are enforced,User is on upload form,"1. Select file larger than allowed size
+2. Submit",File: 25MB image (if max 5MB),System rejects upload and shows file size limit error,Not Executed,Not Run

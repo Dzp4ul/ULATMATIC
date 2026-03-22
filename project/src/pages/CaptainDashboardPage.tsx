@@ -527,7 +527,7 @@ export default function CaptainDashboardPage({
         const [pendingRes, approvedRes, complaintsRes, hearingsRes, caseRes] = await Promise.all([
           fetch('http://localhost/ULATMATIC/api/resident/list_pending.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
           fetch('http://localhost/ULATMATIC/api/resident/list_approved.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }),
+          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true, assigned_role: 'captain' }) }),
           fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
           fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
         ]);
@@ -685,7 +685,7 @@ export default function CaptainDashboardPage({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ all: true, status: complaintStatus }),
+          body: JSON.stringify({ all: true, status: complaintStatus, assigned_role: 'captain' }),
         });
 
         const data = (await res.json()) as { ok?: boolean; error?: string; complaints?: ComplaintRow[] };

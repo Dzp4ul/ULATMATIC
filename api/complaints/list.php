@@ -24,6 +24,14 @@ $body = api_read_json_body();
 $residentId = (int)($body['resident_id'] ?? 0);
 $status = strtoupper(trim((string)($body['status'] ?? '')));
 $all = filter_var($body['all'] ?? false, FILTER_VALIDATE_BOOL);
+$assignedRole = strtolower(trim((string)($body['assigned_role'] ?? '')));
+
+if ($assignedRole !== '' && !in_array($assignedRole, ['secretary', 'captain'], true)) {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'assigned_role must be secretary or captain',
+    ]);
+}
 
 if (!$all && $residentId <= 0) {
     api_send_json(400, [
@@ -65,12 +73,17 @@ $appendComplaint = static function (array $row) use (&$complaints): void {
         'evidence_path' => $row['evidence_path'] ?? null,
         'evidence_mime' => $row['evidence_mime'] ?? null,
         'status' => (string)($row['status'] ?? ''),
+        'assigned_role' => $row['assigned_role'] ?? null,
         'created_at' => $row['created_at'] ?? null,
     ];
 };
 if ($all) {
     if ($status !== '' && $status !== 'ALL') {
-        $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.status = ? ORDER BY c.created_at DESC');
+        if ($assignedRole !== '') {
+            $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.status = ? AND (c.assigned_role = ? OR c.assigned_role IS NULL) ORDER BY c.created_at DESC');
+        } else {
+            $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.status = ? ORDER BY c.created_at DESC');
+        }
         if (!$stmt) {
             $conn->close();
             api_send_json(500, [
@@ -79,7 +92,11 @@ if ($all) {
             ]);
         }
 
-        $stmt->bind_param('s', $status);
+        if ($assignedRole !== '') {
+            $stmt->bind_param('ss', $status, $assignedRole);
+        } else {
+            $stmt->bind_param('s', $status);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result) {
@@ -90,23 +107,44 @@ if ($all) {
 
         $stmt->close();
     } else {
-        $result = $conn->query('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id ORDER BY c.created_at DESC');
-        if (!$result) {
-            $conn->close();
-            api_send_json(500, [
-                'ok' => false,
-                'error' => 'Query failed',
-            ]);
-        }
+        if ($assignedRole !== '') {
+            $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.assigned_role = ? OR c.assigned_role IS NULL ORDER BY c.created_at DESC');
+            if (!$stmt) {
+                $conn->close();
+                api_send_json(500, [
+                    'ok' => false,
+                    'error' => 'Query prepare failed',
+                ]);
+            }
 
-        while ($row = $result->fetch_assoc()) {
-            $appendComplaint($row);
-        }
+            $stmt->bind_param('s', $assignedRole);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $appendComplaint($row);
+                }
+            }
+            $stmt->close();
+        } else {
+            $result = $conn->query('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id ORDER BY c.created_at DESC');
+            if (!$result) {
+                $conn->close();
+                api_send_json(500, [
+                    'ok' => false,
+                    'error' => 'Query failed',
+                ]);
+            }
 
-        $result->free();
+            while ($row = $result->fetch_assoc()) {
+                $appendComplaint($row);
+            }
+
+            $result->free();
+        }
     }
 } elseif ($status !== '' && $status !== 'ALL') {
-    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? AND c.status = ? ORDER BY c.created_at DESC');
+    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? AND c.status = ? ORDER BY c.created_at DESC');
     if (!$stmt) {
         $conn->close();
         api_send_json(500, [
@@ -126,7 +164,7 @@ if ($all) {
 
     $stmt->close();
 } else {
-    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? ORDER BY c.created_at DESC');
+    $stmt = $conn->prepare('SELECT c.id, c.resident_id, c.tracking_number, c.case_number, c.complaint_title, c.complaint_type, c.complaint_category, c.sitio, c.respondent_name, c.respondent_address, c.description, c.incident_date, c.incident_time, c.witness, c.evidence_path, c.evidence_mime, c.status, c.assigned_role, c.created_at, r.fname AS resident_fname, r.midname AS resident_midname, r.lname AS resident_lname FROM complaints c LEFT JOIN resident_user r ON c.resident_id = r.id WHERE c.resident_id = ? ORDER BY c.created_at DESC');
     if (!$stmt) {
         $conn->close();
         api_send_json(500, [

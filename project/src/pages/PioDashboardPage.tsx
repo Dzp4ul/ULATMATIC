@@ -11,8 +11,12 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { IncidentStatsCharts } from '../components/IncidentStatsCharts';
+import { IncidentActionModal } from '../components/IncidentActionModal';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
+import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
+import { recordIncidentView } from '../utils/incident-tracking';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
@@ -121,6 +125,10 @@ export default function PioDashboardPage({
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [incidentActionId, setIncidentActionId] = useState<number | null>(null);
+  const [incidentModal, setIncidentModal] = useState<{ mode: 'resolve' | 'transfer'; incidentId: number; incidentLabel: string } | null>(null);
+  const [transferTargetRole, setTransferTargetRole] = useState<'secretary' | 'captain'>('secretary');
+  const [dashboardChartLoading, setDashboardChartLoading] = useState(false);
+  const [incidentMonthlyData, setIncidentMonthlyData] = useState<IncidentMonthlyDatum[]>([]);
   const [summary, setSummary] = useState({ pending: 0, resolved: 0, transferred: 0 });
   const navItems = useMemo<NavItem[]>(() => {
     return incidents.map((inc) => ({
@@ -133,6 +141,7 @@ export default function PioDashboardPage({
   }, [incidents]);
 
   const loadSummary = async () => {
+    setDashboardChartLoading(true);
     try {
       const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
         method: 'POST',
@@ -153,8 +162,11 @@ export default function PioDashboardPage({
         else next.pending += 1;
       });
       setSummary(next);
+      setIncidentMonthlyData(buildIncidentMonthlyData(data.incidents));
     } catch {
       // ignore
+    } finally {
+      setDashboardChartLoading(false);
     }
   };
 
@@ -319,11 +331,18 @@ export default function PioDashboardPage({
     ],
     [summary]
   );
+  const incidentStatusData = useMemo(
+    () => [
+      { name: 'Pending', value: summary.pending, color: '#f59e0b' },
+      { name: 'Resolved', value: summary.resolved, color: '#10b981' },
+      { name: 'Transferred', value: summary.transferred, color: '#3b82f6' },
+    ],
+    [summary]
+  );
   const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
 
   const handleResolve = async (id: number) => {
-    if (!window.confirm('Mark this incident as resolved?')) return;
     setIncidentActionId(id);
     setIncidentsError(null);
     try {
@@ -355,7 +374,6 @@ export default function PioDashboardPage({
   };
 
   const handleTransfer = async (id: number) => {
-    if (!window.confirm('Transfer this incident into a complaint record?')) return;
     setIncidentActionId(id);
     setIncidentsError(null);
     try {
@@ -364,7 +382,7 @@ export default function PioDashboardPage({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, assigned_role: transferTargetRole }),
       });
 
       const data = (await res.json()) as { ok?: boolean; error?: string };
@@ -384,6 +402,20 @@ export default function PioDashboardPage({
     } finally {
       setIncidentActionId(null);
     }
+  };
+
+  const handleIncidentActionConfirm = async () => {
+    if (!incidentModal) return;
+
+    const { mode, incidentId } = incidentModal;
+    setIncidentModal(null);
+
+    if (mode === 'resolve') {
+      await handleResolve(incidentId);
+      return;
+    }
+
+    await handleTransfer(incidentId);
   };
 
   return (
@@ -566,6 +598,12 @@ export default function PioDashboardPage({
                     <StatCard key={s.title} title={s.title} value={s.value} icon={s.icon} iconBgClassName={s.iconBgClassName} />
                   ))}
                 </section>
+
+                <IncidentStatsCharts
+                  loading={dashboardChartLoading}
+                  monthlyData={incidentMonthlyData}
+                  statusData={incidentStatusData}
+                />
               </>
             ) : activeView === 'profile' ? (
               <div className="space-y-6">
@@ -761,6 +799,7 @@ export default function PioDashboardPage({
                               <tr key={row.id} className="hover:bg-gray-50">
                                 <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
                                 <td className="px-5 py-3 text-gray-700">{row.incident_type}</td>
+                                <td className="px-5 py-3 text-gray-700">{row.incident_category}</td>
                                 <td className="px-5 py-3 text-gray-700">{row.sitio}</td>
                                 <td className="px-5 py-3 text-gray-600">
                                   <div className="line-clamp-2 max-w-xs">{row.description}</div>
@@ -790,7 +829,14 @@ export default function PioDashboardPage({
                                       <button
                                         type="button"
                                         disabled={incidentActionId === row.id}
-                                        onClick={() => handleResolve(row.id)}
+                                        onClick={() => {
+                                          recordIncidentView(row.id, pioId, 'pio');
+                                          setIncidentModal({
+                                            mode: 'resolve',
+                                            incidentId: row.id,
+                                            incidentLabel: row.tracking_number ?? row.incident_type,
+                                          });
+                                        }}
                                         className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:bg-emerald-300"
                                       >
                                         Resolve
@@ -798,7 +844,15 @@ export default function PioDashboardPage({
                                       <button
                                         type="button"
                                         disabled={incidentActionId === row.id}
-                                        onClick={() => handleTransfer(row.id)}
+                                        onClick={() => {
+                                          recordIncidentView(row.id, pioId, 'pio');
+                                          setTransferTargetRole('secretary');
+                                          setIncidentModal({
+                                            mode: 'transfer',
+                                            incidentId: row.id,
+                                            incidentLabel: row.tracking_number ?? row.incident_type,
+                                          });
+                                        }}
                                         className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                                       >
                                         Transfer
@@ -821,6 +875,18 @@ export default function PioDashboardPage({
           </main>
         </div>
       </div>
+      <IncidentActionModal
+        open={incidentModal !== null}
+        mode={incidentModal?.mode ?? 'resolve'}
+        incidentLabel={incidentModal?.incidentLabel}
+        selectedRole={transferTargetRole}
+        onRoleChange={setTransferTargetRole}
+        onCancel={() => setIncidentModal(null)}
+        onConfirm={() => {
+          void handleIncidentActionConfirm();
+        }}
+        isSubmitting={incidentActionId !== null}
+      />
     </div>
   );
 }

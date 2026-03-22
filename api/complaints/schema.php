@@ -161,4 +161,12 @@ function api_ensure_complaint_schema(mysqli $conn): void
         }
         $res->free();
     }
+
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'assigned_role'");
+    if ($res) {
+        if ($res->num_rows === 0) {
+            $conn->query("ALTER TABLE complaints ADD COLUMN assigned_role VARCHAR(20) NULL AFTER status");
+        }
+        $res->free();
+    }
 }

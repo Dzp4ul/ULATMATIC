@@ -1,0 +1,234 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../shared/db.php';
+require_once __DIR__ . '/schema.php';
+
+api_apply_cors();
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    api_send_json(405, [
+        'ok' => false,
+        'error' => 'Method not allowed',
+    ]);
+}
+
+$name = trim((string)($_POST['name'] ?? ''));
+$contactNumber = trim((string)($_POST['contact_number'] ?? ''));
+$sitio = trim((string)($_POST['sitio'] ?? ''));
+$incidentType = trim((string)($_POST['incident_type'] ?? 'Emergency'));
+$incidentCategory = trim((string)($_POST['incident_category'] ?? 'Emergency Report'));
+$description = trim((string)($_POST['description'] ?? ''));
+
+if ($name === '' || $contactNumber === '' || $sitio === '') {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Missing required fields: name, contact_number, sitio',
+    ]);
+}
+
+$evidencePath = null;
+$evidenceMime = null;
+
+if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
+    $file = $_FILES['evidence'];
+    $err = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+    if ($err !== UPLOAD_ERR_NO_FILE) {
+        if ($err !== UPLOAD_ERR_OK) {
+            api_send_json(400, [
+                'ok' => false,
+                'error' => 'Failed to upload evidence file',
+            ]);
+        }
+
+        $tmp = (string)($file['tmp_name'] ?? '');
+        $origName = (string)($file['name'] ?? '');
+
+        $mime = (string)($file['type'] ?? '');
+        if ($mime === '' && $tmp !== '' && function_exists('mime_content_type')) {
+            $detected = @mime_content_type($tmp);
+            if (is_string($detected)) {
+                $mime = $detected;
+            }
+        }
+
+        $allowed = [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/gif',
+        ];
+
+        if ($mime !== '' && !in_array($mime, $allowed, true)) {
+            api_send_json(400, [
+                'ok' => false,
+                'error' => 'Evidence must be an image (jpg, png, webp, gif)',
+            ]);
+        }
+
+        $uploadsRoot = realpath(__DIR__ . '/../..');
+        if ($uploadsRoot === false) {
+            api_send_json(500, [
+                'ok' => false,
+                'error' => 'Server path error',
+            ]);
+        }
+
+        $uploadsRelDir = 'uploads/emergency-incidents';
+        $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'emergency-incidents';
+        if (!is_dir($uploadsAbsDir)) {
+            @mkdir($uploadsAbsDir, 0777, true);
+        }
+
+        if (!is_dir($uploadsAbsDir)) {
+            api_send_json(500, [
+                'ok' => false,
+                'error' => 'Failed to create uploads directory',
+            ]);
+        }
+
+        $sanitize = static function (string $value): string {
+            $value = strtolower(trim($value));
+            $value = preg_replace('/[^a-z0-9_\-\.]+/i', '_', $value);
+            return $value === '' ? 'file' : $value;
+        };
+
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+        $ext = $ext !== '' ? $ext : 'bin';
+
+        $tag = 'emg_' . bin2hex(random_bytes(6));
+        $filename = $sanitize('evidence_' . $tag) . '.' . $ext;
+        $abs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $filename;
+
+        if (!move_uploaded_file($tmp, $abs)) {
+            api_send_json(500, [
+                'ok' => false,
+                'error' => 'Failed to save evidence file',
+            ]);
+        }
+
+        $evidencePath = $uploadsRelDir . '/' . $filename;
+        $evidenceMime = $mime !== '' ? $mime : null;
+    }
+}
+
+$conn = api_db();
+api_ensure_incident_schema($conn);
+
+// Prepare notifications table
+require_once __DIR__ . '/../notifications/helpers.php';
+
+// Generate unique tracking number
+$trackingNumber = null;
+for ($attempt = 0; $attempt < 5; $attempt++) {
+    try {
+        $rand = bin2hex(random_bytes(3));
+    } catch (Throwable $e) {
+        $rand = '';
+    }
+
+    if ($rand === '') {
+        break;
+    }
+
+    $candidate = 'EMG-' . date('Ymd') . '-' . strtoupper($rand);
+    $check = $conn->prepare('SELECT id FROM incidents WHERE tracking_number = ? LIMIT 1');
+    if (!$check) {
+        $conn->close();
+        api_send_json(500, [
+            'ok' => false,
+            'error' => 'Tracking check failed',
+        ]);
+    }
+
+    $check->bind_param('s', $candidate);
+    $check->execute();
+    $result = $check->get_result();
+    $exists = $result ? $result->fetch_assoc() : null;
+    $check->close();
+
+    if (!$exists) {
+        $trackingNumber = $candidate;
+        break;
+    }
+}
+
+if ($trackingNumber === null) {
+    $conn->close();
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Failed to generate tracking number',
+    ]);
+}
+
+$status = 'PENDING';
+$witness = $name . ' (Contact: ' . $contactNumber . ')';
+
+$stmt = $conn->prepare('INSERT INTO incidents (resident_id, tracking_number, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+if (!$stmt) {
+    $conn->close();
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Insert failed',
+    ]);
+}
+
+$residentId = null;
+$stmt->bind_param(
+    'isssssssss',
+    $residentId,
+    $trackingNumber,
+    $incidentType,
+    $incidentCategory,
+    $sitio,
+    $description,
+    $witness,
+    $evidencePath,
+    $evidenceMime,
+    $status
+);
+
+$stmt->execute();
+$id = $stmt->insert_id;
+$stmt->close();
+
+// Notify chief & pio about new emergency incident
+try {
+    ensure_notifications_schema($conn);
+    $notifTitle = 'Emergency Incident Reported';
+    $notifMsg = 'A new emergency report (Tracking: ' . $trackingNumber . ') from ' . $name . ' in ' . $sitio . '.';
+
+    $r = $conn->query("SELECT id FROM chief_user");
+    if ($r) {
+        while ($row = $r->fetch_assoc()) {
+            create_notification($conn, (int)$row['id'], 'chief', $notifTitle, $notifMsg, 'incident', $id);
+        }
+    }
+
+    $r2 = $conn->query("SELECT id FROM pio_user");
+    if ($r2) {
+        while ($row = $r2->fetch_assoc()) {
+            create_notification($conn, (int)$row['id'], 'pio', $notifTitle, $notifMsg, 'incident', $id);
+        }
+    }
+} catch (Exception $e) {
+    // Notifications failed, but incident is saved - continue anyway
+    error_log('Notification error: ' . $e->getMessage());
+}
+
+$conn->close();
+
+api_send_json(200, [
+    'ok' => true,
+    'id' => (int)$id,
+    'tracking_number' => $trackingNumber,
+    'status' => $status,
+    'evidence_path' => $evidencePath,
+]);

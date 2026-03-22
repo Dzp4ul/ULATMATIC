@@ -1111,8 +1111,8 @@ export default function ResidentDashboardPage({
                     }
 
                     const normalizedPhone = profilePhone.trim().replace(/\D/g, '');
-                    if (normalizedPhone && normalizedPhone.length !== 9) {
-                      setProfileError('Phone number must be +63 followed by 9 digits.');
+                    if (normalizedPhone && normalizedPhone.length !== 10) {
+                      setProfileError('Phone number must be +63 followed by 10 digits.');
                       return;
                     }
 

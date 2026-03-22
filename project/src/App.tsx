@@ -9,6 +9,7 @@ import ChiefDashboardPage from './pages/ChiefDashboardPage';
 import PioDashboardPage from './pages/PioDashboardPage';
 import SuperAdminDashboardPage from './pages/SuperAdminDashboardPage';
 import TrackStatusPage from './pages/TrackStatusPage';
+import EmergencyReportPage from './pages/EmergencyReportPage';
 import { type Route, getRouteFromPathname } from './router';
 
 function App() {
@@ -30,6 +31,10 @@ function App() {
 
   if (route === 'signup') {
     return <SignUpPage onNavigate={navigate} />;
+  }
+
+  if (route === 'emergency-report') {
+    return <EmergencyReportPage onNavigate={navigate} />;
   }
 
   if (route === 'track') {

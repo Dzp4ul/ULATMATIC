@@ -32,7 +32,7 @@ if ($id <= 0) {
 $conn = api_db();
 api_ensure_incident_schema($conn);
 
-$stmt = $conn->prepare("UPDATE incidents SET status = 'RESOLVED', resolved_at = NOW() WHERE id = ? AND status = 'PENDING'");
+$stmt = $conn->prepare("UPDATE incidents SET status = 'RESOLVED', resolved_at = NOW() WHERE id = ? AND UPPER(status) = 'PENDING'");
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [

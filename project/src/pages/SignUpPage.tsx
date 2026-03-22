@@ -3,6 +3,8 @@ import { Eye, EyeOff, Camera, RotateCcw, X } from 'lucide-react';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 import { FileDropzone } from '../components/FileDropzone';
 
+type SignUpErrorField = 'phone' | 'password' | 'confirmPassword' | 'gender' | 'idUpload' | 'selfie' | 'form' | 'otp';
+
 export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -25,6 +27,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<SignUpErrorField | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [idFrontFile, setIdFrontFile] = useState<File | null>(null);
   const [idBackFile, setIdBackFile] = useState<File | null>(null);
@@ -93,7 +96,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
         videoRef.current.srcObject = stream;
       }
     } catch {
-      setError('Unable to access camera. Please allow camera permissions.');
+      setFieldError('selfie', 'Unable to access camera. Please allow camera permissions.');
       setCameraOpen(false);
     }
   }, [stopCamera]);
@@ -184,35 +187,47 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const setFieldError = (field: SignUpErrorField, message: string) => {
+    setErrorField(field);
+    setError(message);
+  };
+
+  const clearErrorForField = (field: SignUpErrorField) => {
+    if (errorField === field) {
+      setErrorField(null);
+      setError(null);
+    }
+  };
+
   const submitResidentRegistration = async () => {
     const normalizedPhone = phone.trim();
     if (!isPhoneValid(normalizedPhone)) {
-      setError('Phone number must be +63 followed by 9 digits.');
+      setFieldError('phone', 'Phone number must be +63 followed by 9 digits.');
       return false;
     }
 
     if (!isPasswordValid(password)) {
-      setError('Password must include uppercase, lowercase, number, and symbol.');
-      return false;
-    }
-
-    if (!gender) {
-      setError('Please select a gender.');
-      return false;
-    }
-
-    if (!idFrontFile || !idBackFile) {
-      setError('Please upload both front and back ID images.');
-      return false;
-    }
-
-    if (!selfieFile) {
-      setError('Please take a selfie for face verification.');
+      setFieldError('password', 'Password must include uppercase, lowercase, number, and symbol.');
       return false;
     }
 
     if (password.trim() === '' || password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setFieldError('confirmPassword', 'Passwords do not match.');
+      return false;
+    }
+
+    if (!gender) {
+      setFieldError('gender', 'Please select a gender.');
+      return false;
+    }
+
+    if (!idFrontFile || !idBackFile) {
+      setFieldError('idUpload', 'Please upload both front and back ID images.');
+      return false;
+    }
+
+    if (!selfieFile) {
+      setFieldError('selfie', 'Please take a selfie for face verification.');
       return false;
     }
 
@@ -236,7 +251,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
     const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
     if (!res.ok || !data.ok) {
-      setError(data.error ?? 'Registration failed');
+      setFieldError('form', data.error ?? 'Registration failed');
       return false;
     }
 
@@ -279,36 +294,37 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 if (submitting) return;
 
                 setError(null);
+                setErrorField(null);
                 setOtpNotice(null);
                 setSuccess(null);
 
                 if (!isPhoneValid(phone)) {
-                  setError('Phone number must be +63 followed by 9 digits.');
+                  setFieldError('phone', 'Phone number must be +63 followed by 9 digits.');
                   return;
                 }
 
                 if (!isPasswordValid(password)) {
-                  setError('Password must include uppercase, lowercase, number, and symbol.');
+                  setFieldError('password', 'Password must include uppercase, lowercase, number, and symbol.');
                   return;
                 }
 
                 if (password !== confirmPassword) {
-                  setError('Passwords do not match.');
+                  setFieldError('confirmPassword', 'Passwords do not match.');
                   return;
                 }
 
                 if (!gender) {
-                  setError('Please select a gender.');
+                  setFieldError('gender', 'Please select a gender.');
                   return;
                 }
 
                 if (!idFrontFile || !idBackFile) {
-                  setError('Please upload both front and back ID images.');
+                  setFieldError('idUpload', 'Please upload both front and back ID images.');
                   return;
                 }
 
                 if (!selfieFile) {
-                  setError('Please take a selfie for face verification.');
+                  setFieldError('selfie', 'Please take a selfie for face verification.');
                   return;
                 }
                 setSubmitting(true);
@@ -325,7 +341,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
                       const data = (await res.json()) as { ok?: boolean; error?: string };
                       if (!res.ok || !data.ok) {
-                        setError(data.error ?? 'Failed to send OTP');
+                        setFieldError('otp', data.error ?? 'Failed to send OTP');
                         return;
                       }
 
@@ -344,7 +360,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     onNavigate('/signin');
                   }
                 } catch {
-                  setError('Network error. Please try again.');
+                  setFieldError('form', 'Network error. Please try again.');
                 } finally {
                   setSubmitting(false);
                 }
@@ -391,7 +407,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearErrorForField('form');
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
                   placeholder="you@example.com"
                 />
@@ -410,6 +429,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
                       setPhone(digits);
+                      clearErrorForField('phone');
                     }}
                     inputMode="numeric"
                     className="w-full rounded-r-lg px-4 py-2.5 focus:outline-none"
@@ -418,6 +438,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">Format: +63 followed by 9 digits.</p>
+                {error && errorField === 'phone' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
               <div>
@@ -425,7 +446,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 <select
                   required
                   value={gender}
-                  onChange={(e) => setGender(e.target.value)}
+                  onChange={(e) => {
+                    setGender(e.target.value);
+                    clearErrorForField('gender');
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand"
                 >
                   <option value="" disabled>Select gender</option>
@@ -433,10 +457,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
+                {error && errorField === 'gender' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
               {success ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
-              {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Address</label>
@@ -458,7 +482,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        clearErrorForField('password');
+                      }}
                       className="w-full rounded-lg border border-gray-300 pl-4 pr-11 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
                       placeholder="••••••••"
                     />
@@ -483,6 +510,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       {password.length ? strength.label : ''}
                     </div>
                   </div>
+                  {error && errorField === 'password' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Confirm password</label>
@@ -491,7 +519,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       type={showConfirmPassword ? 'text' : 'password'}
                       required
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        clearErrorForField('confirmPassword');
+                      }}
                       className="w-full rounded-lg border border-gray-300 pl-4 pr-11 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
                       placeholder="••••••••"
                     />
@@ -504,6 +535,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       {showConfirmPassword ? <EyeOff className="w-5 h-5 text-gray-600" /> : <Eye className="w-5 h-5 text-gray-600" />}
                     </button>
                   </div>
+                  {error && errorField === 'confirmPassword' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
                 </div>
               </div>
 
@@ -539,6 +571,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 <p className="text-xs text-gray-500 mt-2">
                   Upload any valid ID or document proving you live in Bigte, Norzagaray, Bulacan.
                 </p>
+                {error && errorField === 'idUpload' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
               {/* Selfie capture section */}
@@ -557,6 +590,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                         type="button"
                         onClick={() => {
                           setSelfieFile(null);
+                          clearErrorForField('selfie');
                           setCameraOpen(true);
                         }}
                         className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand/80"
@@ -569,7 +603,10 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setCameraOpen(true)}
+                    onClick={() => {
+                      clearErrorForField('selfie');
+                      setCameraOpen(true);
+                    }}
                     className="w-full flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-gray-300 hover:border-brand/50 p-6 bg-white transition-colors"
                   >
                     <div className="w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center">
@@ -584,9 +621,14 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 <p className="text-xs text-gray-500 mt-2">
                   Your selfie will be used for face verification during account approval.
                 </p>
+                {error && errorField === 'selfie' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
               <canvas ref={canvasRef} className="hidden" />
+
+              {error && (errorField === 'form' || errorField === null) ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+              ) : null}
 
               <button
                 type="submit"
@@ -661,6 +703,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     onClick={async () => {
                       if (submitting) return;
                       setError(null);
+                      setErrorField(null);
                       setOtpNotice(null);
                       setSubmitting(true);
                       try {
@@ -674,7 +717,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
                         const data = (await res.json()) as { ok?: boolean; error?: string };
                         if (!res.ok || !data.ok) {
-                          setError(data.error ?? 'Failed to resend OTP');
+                          setFieldError('otp', data.error ?? 'Failed to resend OTP');
                           return;
                         }
 
@@ -684,7 +727,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                         setResendAvailableAt(Date.now() + 30 * 1000);
                         setOtpNotice('A new code has been sent.');
                       } catch {
-                        setError('Network error. Please try again.');
+                        setFieldError('otp', 'Network error. Please try again.');
                       } finally {
                         setSubmitting(false);
                       }
@@ -710,7 +753,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 </div>
 
                 {otpNotice ? <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-brand">{otpNotice}</div> : null}
-                {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+                {error && errorField === 'otp' ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
                 <button
                   type="button"
@@ -718,6 +761,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   onClick={async () => {
                     if (submitting) return;
                     setError(null);
+                    setErrorField(null);
                     setOtpNotice(null);
                     setSubmitting(true);
                     try {
@@ -731,7 +775,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
                       const data = (await res.json()) as { ok?: boolean; error?: string };
                       if (!res.ok || !data.ok) {
-                        setError(data.error ?? 'OTP verification failed');
+                        setFieldError('otp', data.error ?? 'OTP verification failed');
                         return;
                       }
 
@@ -739,7 +783,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       setOtpModalOpen(false);
                       setOtpNotice(null);
                     } catch {
-                      setError('Network error. Please try again.');
+                      setFieldError('otp', 'Network error. Please try again.');
                     } finally {
                       setSubmitting(false);
                     }
