@@ -70,6 +70,13 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
     };
   }, [stream]);
 
+  // Connect stream to video element when both are available
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream, cameraActive]);
+
   const fetchIncidentData = async (tracking: string) => {
     try {
       const response = await fetch('/api/incidents/track.php', {
