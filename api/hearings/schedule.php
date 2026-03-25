@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/../shared/email_notify.php';
 
 api_apply_cors();
 
@@ -89,6 +90,10 @@ if (strtoupper($complaint['status']) !== 'IN_PROGRESS') {
     ]);
 }
 
+// Check if there's already a hearing for this complaint (reschedule)
+$existingHearing = $conn->query("SELECT id FROM hearing_schedules WHERE complaint_id = $complaint_id LIMIT 1");
+$isReschedule = $existingHearing && $existingHearing->num_rows > 0;
+
 // Insert hearing schedule
 $stmt = $conn->prepare(
     "INSERT INTO hearing_schedules (complaint_id, scheduled_date, scheduled_time, location, notes, status) 
@@ -120,9 +125,13 @@ $stmt->close();
 
 // Notify the resident who filed the complaint about the hearing
 require_once __DIR__ . '/../notifications/helpers.php';
-$cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $complaint_id")->fetch_assoc();
+$cRow = $conn->query("SELECT c.resident_id, c.complaint_title, c.case_number FROM complaints c WHERE c.id = $complaint_id")->fetch_assoc();
 if ($cRow) {
-    create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Hearing Scheduled', 'A hearing for your complaint "' . $cRow['complaint_title'] . '" has been scheduled on ' . $scheduled_date . ' at ' . $scheduled_time . '.', 'hearing', $hearing_id);
+    $notifTitle = $isReschedule ? 'Hearing Rescheduled' : 'Hearing Scheduled';
+    $notifMsg = ($isReschedule ? 'Your hearing has been rescheduled' : 'A hearing has been scheduled') . ' for your complaint "' . $cRow['complaint_title'] . '" on ' . $scheduled_date . ' at ' . $scheduled_time . '.';
+    create_notification($conn, (int)$cRow['resident_id'], 'resident', $notifTitle, $notifMsg, 'hearing', $hearing_id);
+    // Send email notification
+    notify_hearing_scheduled($conn, (int)$cRow['resident_id'], $cRow['complaint_title'], $cRow['case_number'] ?? '', $scheduled_date, $scheduled_time, $location, $isReschedule);
 }
 
 $conn->close();

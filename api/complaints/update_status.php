@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/../shared/email_notify.php';
 
 api_apply_cors();
 
@@ -68,6 +69,8 @@ if ($action === 'DECLINE') {
     $cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $id")->fetch_assoc();
     if ($cRow) {
         create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Complaint Declined', 'Your complaint "' . $cRow['complaint_title'] . '" has been declined.', 'complaint', $id);
+        // Send email notification
+        notify_complaint_status($conn, (int)$cRow['resident_id'], 'DECLINED', $cRow['complaint_title']);
     }
     $conn->close();
 
@@ -152,6 +155,8 @@ try {
     $cRow = $conn->query("SELECT resident_id, complaint_title FROM complaints WHERE id = $id")->fetch_assoc();
     if ($cRow) {
         create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Complaint Accepted', 'Your complaint "' . $cRow['complaint_title'] . '" has been accepted. Case Number: ' . $caseNumber, 'complaint', $id);
+        // Send email notification
+        notify_complaint_status($conn, (int)$cRow['resident_id'], 'ACCEPTED', $cRow['complaint_title'], $caseNumber);
     }
 
     $conn->commit();

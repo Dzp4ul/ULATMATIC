@@ -6,6 +6,7 @@ require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/../complaints/schema.php';
 require_once __DIR__ . '/../notifications/helpers.php';
+require_once __DIR__ . '/../shared/email_notify.php';
 
 api_apply_cors();
 
@@ -43,7 +44,7 @@ $conn = api_db();
 api_ensure_incident_schema($conn);
 api_ensure_complaint_schema($conn);
 
-$stmt = $conn->prepare('SELECT id, resident_id, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status FROM incidents WHERE id = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT id, resident_id, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status, tracking_number FROM incidents WHERE id = ? LIMIT 1');
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -143,6 +144,23 @@ if ($recipientResult) {
         create_notification($conn, (int)($recipient['id'] ?? 0), $assignedRole, $notifTitle, $notifMsg, 'complaint', (int)$complaintId);
     }
     $recipientResult->free();
+}
+
+// Notify resident about incident transfer
+if ($residentId > 0) {
+    $incidentLabel = $incidentType !== '' ? $incidentType : ('Incident #' . $id);
+    create_notification(
+        $conn,
+        $residentId,
+        'resident',
+        'Incident Transferred to Complaints',
+        'Your incident report "' . $incidentLabel . '" has been transferred to the complaints system for further action.',
+        'incident',
+        $id
+    );
+    // Send email notification
+    $trackingNumber = $incident['tracking_number'] ?? ('INC-' . $id);
+    notify_incident_status($conn, $residentId, 'TRANSFERRED', $incidentType, $trackingNumber);
 }
 
 $update = $conn->prepare("UPDATE incidents SET status = 'TRANSFERRED', transferred_at = NOW() WHERE id = ? AND UPPER(status) = 'PENDING'");

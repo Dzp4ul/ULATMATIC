@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/../notifications/helpers.php';
+require_once __DIR__ . '/../shared/email_notify.php';
 
 api_apply_cors();
 
@@ -45,6 +47,26 @@ $stmt->bind_param('i', $id);
 $stmt->execute();
 $affected = $stmt->affected_rows;
 $stmt->close();
+
+// Notify resident about resolved incident
+if ($affected > 0) {
+    $incRow = $conn->query("SELECT resident_id, incident_type, tracking_number FROM incidents WHERE id = $id")->fetch_assoc();
+    if ($incRow && (int)$incRow['resident_id'] > 0) {
+        $incidentLabel = !empty($incRow['incident_type']) ? $incRow['incident_type'] : $incRow['tracking_number'];
+        create_notification(
+            $conn,
+            (int)$incRow['resident_id'],
+            'resident',
+            'Incident Resolved',
+            'Your incident report "' . $incidentLabel . '" has been resolved.',
+            'incident',
+            $id
+        );
+        // Send email notification
+        notify_incident_status($conn, (int)$incRow['resident_id'], 'RESOLVED', $incRow['incident_type'] ?? '', $incRow['tracking_number'] ?? '');
+    }
+}
+
 $conn->close();
 
 if ($affected <= 0) {

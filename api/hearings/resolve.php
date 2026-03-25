@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/schema.php';
+require_once __DIR__ . '/../shared/email_notify.php';
+require_once __DIR__ . '/../notifications/helpers.php';
 
 api_apply_cors();
 
@@ -89,6 +91,17 @@ $stmt = $conn->prepare("UPDATE complaints SET status = ? WHERE id = ?");
 $stmt->bind_param('si', $complaint_status, $complaint_id);
 $stmt->execute();
 $stmt->close();
+
+// Notify resident about case resolution (only if not pending)
+if ($resolution_type !== 'PENDING') {
+    $cRow = $conn->query("SELECT resident_id, complaint_title, case_number FROM complaints WHERE id = $complaint_id")->fetch_assoc();
+    if ($cRow) {
+        $resLabel = ucfirst(strtolower(str_replace('_', ' ', $resolution_type)));
+        create_notification($conn, (int)$cRow['resident_id'], 'resident', 'Case Resolved', 'Your case "' . $cRow['complaint_title'] . '" has been resolved. Resolution: ' . $resLabel, 'complaint', $complaint_id);
+        // Send email notification
+        notify_case_resolved($conn, (int)$cRow['resident_id'], $cRow['complaint_title'], $cRow['case_number'] ?? '', $resolution_type, $resolution_method ?? '', $resolution_notes ?? '');
+    }
+}
 
 $conn->close();
 

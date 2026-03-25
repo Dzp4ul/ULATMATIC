@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mailer_config.php';
+require_once __DIR__ . '/email_template.php';
 
 api_apply_cors();
 
@@ -124,8 +125,15 @@ try {
     $mail->addAddress($email);
 
     $mail->isHTML(true);
-    $mail->Subject = 'Password Reset OTP';
-    $mail->Body = '<h3>Password Reset</h3><p>Your OTP for password reset is <b>' . $otp . '</b></p><p>This code expires in 10 minutes.</p>';
+    $mail->Subject = 'ULATMATIC - Password Reset Code';
+    $mail->Body = api_password_reset_email($otp);
+    $mail->AltBody = "Your ULATMATIC password reset code is: $otp. This code expires in 10 minutes.";
+
+    // Embed logo image for email display
+    $logoPath = __DIR__ . '/../../uploads/logo.png';
+    if (file_exists($logoPath)) {
+        $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
+    }
 
     $mail->send();
 

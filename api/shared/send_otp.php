@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mailer_config.php';
+require_once __DIR__ . '/email_template.php';
 
 api_apply_cors();
 
@@ -93,8 +94,15 @@ try {
     $mail->addAddress($email);
 
     $mail->isHTML(true);
-    $mail->Subject = 'OTP Verification';
-    $mail->Body = 'Your OTP is <b>' . $otp . '</b>';
+    $mail->Subject = 'ULATMATIC - Email Verification Code';
+    $mail->Body = api_otp_email($otp);
+    $mail->AltBody = "Your ULATMATIC verification code is: $otp. This code expires in 10 minutes.";
+
+    // Embed logo image for email display
+    $logoPath = __DIR__ . '/../../uploads/logo.png';
+    if (file_exists($logoPath)) {
+        $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
+    }
 
     $mail->send();
 
