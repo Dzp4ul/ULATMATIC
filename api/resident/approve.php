@@ -33,7 +33,8 @@ $conn = api_db();
 api_ensure_resident_user_schema($conn);
 
 $status = 'APPROVED';
-$stmt = $conn->prepare("UPDATE resident_user SET status = ?, approved_at = CURRENT_TIMESTAMP, declined_at = NULL WHERE id = ? AND status = 'PENDING'");
+// Set profile_photo to selfie_photo when approving
+$stmt = $conn->prepare("UPDATE resident_user SET status = ?, approved_at = CURRENT_TIMESTAMP, declined_at = NULL, profile_photo = selfie_photo WHERE id = ? AND status = 'PENDING'");
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
