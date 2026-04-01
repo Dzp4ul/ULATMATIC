@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, AlertCircle, CheckCircle, ArrowLeft, Smartphone, User, Phone, MapPin, FileText, Eye, Clock } from 'lucide-react';
+import { clearLastEmergencyTrackingNumber, getLastEmergencyTrackingNumber, saveLastEmergencyTrackingNumber } from '../utils/emergency-report-session';
 
 const SITIOS = [
   'Ahunin',
@@ -58,6 +59,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
   const [incidentData, setIncidentData] = useState<IncidentData | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const restoredFromStorageRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -69,6 +71,18 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
       }
     };
   }, [stream]);
+
+  useEffect(() => {
+    if (restoredFromStorageRef.current) return;
+    restoredFromStorageRef.current = true;
+
+    const lastTrackingNumber = getLastEmergencyTrackingNumber();
+    if (!lastTrackingNumber) return;
+
+    setSuccess(true);
+    setTrackingNumber(lastTrackingNumber);
+    setupPolling(lastTrackingNumber);
+  }, []);
 
   // Connect stream to video element when both are available
   useEffect(() => {
@@ -240,6 +254,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
 
       setSuccess(true);
       setTrackingNumber(data.tracking_number);
+      saveLastEmergencyTrackingNumber(data.tracking_number);
       setLoading(false);
 
       // Start polling for real-time updates
@@ -261,6 +276,39 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
     setSuccess(false);
     setTrackingNumber('');
   };
+
+  const startNewEmergencyReport = () => {
+    clearLastEmergencyTrackingNumber();
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setIncidentData(null);
+    setSuccess(false);
+    setTrackingNumber('');
+  };
+
+  const normalizedIncidentStatus = (incidentData?.status ?? '').trim().toUpperCase();
+  const viewedByChief = Boolean(incidentData?.viewed_by_chief);
+  const viewedByPio = Boolean(incidentData?.viewed_by_pio);
+  const viewedByOfficial = viewedByChief || viewedByPio;
+  const isResolved = normalizedIncidentStatus === 'RESOLVED';
+  const isTransferred = normalizedIncidentStatus === 'TRANSFERRED';
+  const isOngoingStatus = ['IN_PROGRESS', 'ONGOING', 'ON_GOING', 'ON GOING'].includes(normalizedIncidentStatus);
+  const hasBeenViewedStep = viewedByOfficial || isOngoingStatus || isResolved || isTransferred;
+  const isOnGoingStep = isOngoingStatus || isResolved;
+  const statusDisplayLabel = normalizedIncidentStatus === 'IN_PROGRESS' ? 'ON GOING' : (incidentData?.status ?? '');
+
+  let viewedStatusLabel = 'Pending view by Chief or PIO';
+  if (viewedByChief && viewedByPio) {
+    viewedStatusLabel = 'Viewed by Chief and PIO';
+  } else if (viewedByChief) {
+    viewedStatusLabel = 'Viewed by Chief';
+  } else if (viewedByPio) {
+    viewedStatusLabel = 'Viewed by PIO';
+  } else if (hasBeenViewedStep) {
+    viewedStatusLabel = 'Viewed by barangay officials';
+  }
 
   if (success) {
     return (
@@ -304,10 +352,18 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
               <p className="text-3xl font-bold font-mono text-brand">{trackingNumber}</p>
             </div>
 
+            <button
+              type="button"
+              onClick={startNewEmergencyReport}
+              className="mb-6 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Submit Another Emergency Report
+            </button>
+
             {/* Status Timeline */}
             {incidentData && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Reported Status */}
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                     <div className="flex items-center gap-2 mb-2">
@@ -319,37 +375,51 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                     </p>
                   </div>
 
-                  {/* Chief Viewed */}
+                  {/* Viewed Status */}
                   <div className={`rounded-lg p-4 border-2 transition-all ${
-                    incidentData.viewed_by_chief
+                    hasBeenViewedStep
                       ? 'bg-green-50 border-green-200'
                       : 'bg-gray-50 border-gray-200 opacity-50'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Eye className={`w-4 h-4 ${incidentData.viewed_by_chief ? 'text-green-600' : 'text-gray-400'}`} />
-                      <p className="font-semibold text-gray-900">Chief Viewed</p>
+                      <Eye className={`w-4 h-4 ${hasBeenViewedStep ? 'text-green-600' : 'text-gray-400'}`} />
+                      <p className="font-semibold text-gray-900">Your Report is Viewed</p>
                     </div>
                     <p className="text-xs text-gray-600">
-                      {incidentData.viewed_by_chief ? '✓ Viewed' : 'Pending view'}
+                      {viewedStatusLabel}
                     </p>
                   </div>
 
-                  {/* PIO Viewed */}
+                  {/* On Going */}
                   <div className={`rounded-lg p-4 border-2 transition-all ${
-                    incidentData.viewed_by_pio
+                    isOnGoingStep
                       ? 'bg-green-50 border-green-200'
                       : 'bg-gray-50 border-gray-200 opacity-50'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Eye className={`w-4 h-4 ${incidentData.viewed_by_pio ? 'text-green-600' : 'text-gray-400'}`} />
-                      <p className="font-semibold text-gray-900">PIO Viewed</p>
+                      <Clock className={`w-4 h-4 ${isOnGoingStep ? 'text-green-600' : 'text-gray-400'}`} />
+                      <p className="font-semibold text-gray-900">On Going</p>
                     </div>
                     <p className="text-xs text-gray-600">
-                      {incidentData.viewed_by_pio ? '✓ Viewed' : 'Pending view'}
+                      {isResolved ? 'Processing completed' : isOnGoingStep ? 'Team is handling your report' : 'Waiting to be viewed'}
+                    </p>
+                  </div>
+
+                  {/* Resolved */}
+                  <div className={`rounded-lg p-4 border-2 transition-all ${
+                    isResolved
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-gray-50 border-gray-200 opacity-50'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className={`w-4 h-4 ${isResolved ? 'text-green-600' : 'text-gray-400'}`} />
+                      <p className="font-semibold text-gray-900">Resolved</p>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {isResolved ? 'Report resolved' : 'Pending resolution'}
                     </p>
                   </div>
                 </div>
-
                 {/* Details */}
                 <div className="bg-gray-50 rounded-lg p-6 mt-6">
                   <h3 className="font-bold text-gray-900 mb-4">Report Details</h3>
@@ -364,7 +434,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                     </div>
                     <div>
                       <p className="text-gray-600">Status</p>
-                      <p className="font-semibold text-gray-900">{incidentData.status}</p>
+                      <p className="font-semibold text-gray-900">{statusDisplayLabel}</p>
                     </div>
                     {incidentData.description && (
                       <div>
@@ -380,7 +450,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                   <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-blue-900 text-sm">Real-Time Updates</p>
-                    <p className="text-xs text-blue-700 mt-1">This page updates automatically every 3 seconds to show when your report is viewed by officials</p>
+                    <p className="text-xs text-blue-700 mt-1">This page updates every 3 seconds to show viewed, on going, and resolved progress</p>
                   </div>
                 </div>
               </div>

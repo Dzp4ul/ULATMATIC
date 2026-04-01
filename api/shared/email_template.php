@@ -280,6 +280,13 @@ HTML;
 function api_incident_status_email(string $status, string $incidentType, string $trackingNumber): string
 {
     $statusInfo = [
+        'IN_PROGRESS' => [
+            'label' => 'On Going',
+            'color' => '#2563eb',
+            'bg' => '#dbeafe',
+            'icon' => '&#9881;',
+            'message' => 'Your incident report has been accepted and is now on going. Our team is currently handling your report.'
+        ],
         'RESOLVED' => [
             'label' => 'Resolved',
             'color' => '#22c55e',

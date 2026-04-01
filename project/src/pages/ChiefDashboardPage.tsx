@@ -14,13 +14,14 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IncidentStatsCharts } from '../components/IncidentStatsCharts';
 import { IncidentActionModal } from '../components/IncidentActionModal';
+import { IncidentDetailsModal, type IncidentDetailsData } from '../components/IncidentDetailsModal';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
 import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
 import { recordIncidentView } from '../utils/incident-tracking';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
-type IncidentStatus = 'PENDING' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
+type IncidentStatus = 'ACTIVE' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
 
 type IncidentRow = {
   id: number;
@@ -97,6 +98,8 @@ function StatusBadge({ status }: { status: string }) {
   const styles =
     normalized === 'RESOLVED'
       ? 'bg-emerald-100 text-emerald-700'
+      : normalized === 'IN_PROGRESS' || normalized === 'ONGOING' || normalized === 'ON GOING' || normalized === 'ON_GOING'
+        ? 'bg-indigo-100 text-indigo-700'
       : normalized === 'TRANSFERRED'
         ? 'bg-blue-100 text-blue-700'
         : 'bg-orange-100 text-orange-700';
@@ -123,12 +126,13 @@ export default function ChiefDashboardPage({
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const [incidentStatus, setIncidentStatus] = useState<IncidentStatus>('PENDING');
+  const [incidentStatus, setIncidentStatus] = useState<IncidentStatus>('ACTIVE');
   const [incidents, setIncidents] = useState<IncidentRow[]>([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [incidentActionId, setIncidentActionId] = useState<number | null>(null);
   const [incidentModal, setIncidentModal] = useState<{ mode: 'resolve' | 'transfer'; incidentId: number; incidentLabel: string } | null>(null);
+  const [incidentDetails, setIncidentDetails] = useState<IncidentDetailsData | null>(null);
   const [transferTargetRole, setTransferTargetRole] = useState<'secretary' | 'captain'>('secretary');
   const [dashboardChartLoading, setDashboardChartLoading] = useState(false);
   const [incidentMonthlyData, setIncidentMonthlyData] = useState<IncidentMonthlyDatum[]>([]);
@@ -344,6 +348,17 @@ export default function ChiefDashboardPage({
   );
   const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
+  const isIncidentActionable = (status: string): boolean => {
+    const normalized = status.toUpperCase();
+    return normalized === 'PENDING' || normalized === 'IN_PROGRESS' || normalized === 'ONGOING' || normalized === 'ON GOING' || normalized === 'ON_GOING';
+  };
+
+  const isEmergencyIncident = (row: IncidentRow): boolean => {
+    const tracking = (row.tracking_number ?? '').toUpperCase();
+    const type = (row.incident_type ?? '').toUpperCase();
+    const category = (row.incident_category ?? '').toUpperCase();
+    return tracking.startsWith('EMG-') || type.includes('EMERGENCY') || category.includes('EMERGENCY');
+  };
 
   const handleResolve = async (id: number) => {
     setIncidentActionId(id);
@@ -363,11 +378,46 @@ export default function ChiefDashboardPage({
         return;
       }
 
-      if (incidentStatus === 'PENDING') {
+      if (incidentStatus === 'ACTIVE' || incidentStatus === 'PENDING' || incidentStatus === 'IN_PROGRESS') {
         setIncidents((prev) => prev.filter((row) => row.id !== id));
       } else if (incidentStatus === 'ALL') {
         setIncidents((prev) => prev.map((row) => (row.id === id ? { ...row, status: 'RESOLVED' } : row)));
       }
+      await loadSummary();
+    } catch {
+      setIncidentsError('Network error. Please try again.');
+    } finally {
+      setIncidentActionId(null);
+    }
+  };
+
+  const handleAccept = async (id: number) => {
+    setIncidentActionId(id);
+    setIncidentsError(null);
+    try {
+      const res = await fetch('http://localhost/ULATMATIC/api/incidents/accept.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setIncidentsError(data.error ?? 'Failed to accept incident');
+        return;
+      }
+
+      if (incidentStatus === 'ACTIVE') {
+        setIncidents((prev) => prev.map((row) => (row.id === id ? { ...row, status: 'IN_PROGRESS' } : row)));
+      } else if (incidentStatus === 'PENDING') {
+        setIncidents((prev) => prev.filter((row) => row.id !== id));
+      } else if (incidentStatus === 'ALL') {
+        setIncidents((prev) => prev.map((row) => (row.id === id ? { ...row, status: 'IN_PROGRESS' } : row)));
+      }
+
+      setIncidentDetails((prev) => (prev && prev.id === id ? { ...prev, status: 'IN_PROGRESS' } : prev));
       await loadSummary();
     } catch {
       setIncidentsError('Network error. Please try again.');
@@ -394,7 +444,7 @@ export default function ChiefDashboardPage({
         return;
       }
 
-      if (incidentStatus === 'PENDING') {
+      if (incidentStatus === 'ACTIVE' || incidentStatus === 'PENDING' || incidentStatus === 'IN_PROGRESS') {
         setIncidents((prev) => prev.filter((row) => row.id !== id));
       } else if (incidentStatus === 'ALL') {
         setIncidents((prev) => prev.map((row) => (row.id === id ? { ...row, status: 'TRANSFERRED' } : row)));
@@ -419,6 +469,27 @@ export default function ChiefDashboardPage({
     }
 
     await handleTransfer(incidentId);
+  };
+
+  const getChiefViewerId = (): number => {
+    if (chiefId > 0) return chiefId;
+    try {
+      const raw = localStorage.getItem('ulatmatic_chief');
+      if (!raw) return 0;
+      const parsed = JSON.parse(raw) as { id?: unknown };
+      const parsedId = typeof parsed.id === 'number' ? parsed.id : Number(parsed.id);
+      return Number.isFinite(parsedId) ? parsedId : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const handleViewIncidentDetails = (row: IncidentRow) => {
+    const viewerId = getChiefViewerId();
+    if (viewerId > 0) {
+      void recordIncidentView(row.id, viewerId, 'chief');
+    }
+    setIncidentDetails(row);
   };
 
   return (
@@ -471,10 +542,10 @@ export default function ChiefDashboardPage({
             <SidebarItem
               label="Incident Reports"
               icon={<FileText className="h-5 w-5" />}
-              active={activeView === 'incidents' && incidentStatus === 'PENDING'}
+              active={activeView === 'incidents' && incidentStatus === 'ACTIVE'}
               onClick={() => {
                 setActiveView('incidents');
-                setIncidentStatus('PENDING');
+                setIncidentStatus('ACTIVE');
               }}
             />
             <SidebarItem
@@ -811,25 +882,21 @@ export default function ChiefDashboardPage({
                                   {row.witness ? <div className="mt-1 text-xs text-gray-500">Witness: {row.witness}</div> : null}
                                 </td>
                                 <td className="px-5 py-3">
-                                  {evidenceUrl ? (
-                                    <a
-                                      href={evidenceUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-brand hover:text-brand/90 font-semibold"
-                                    >
-                                      View
-                                    </a>
-                                  ) : (
-                                    <span className="text-xs text-gray-400">None</span>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewIncidentDetails(row)}
+                                    className="font-semibold text-brand hover:text-brand/90"
+                                  >
+                                    View
+                                  </button>
+                                  {!evidenceUrl ? <div className="mt-1 text-xs text-gray-400">No file</div> : null}
                                 </td>
                                 <td className="px-5 py-3">
                                   <StatusBadge status={row.status} />
                                 </td>
                                 <td className="px-5 py-3 text-gray-600">{row.created_at ?? '-'}</td>
                                 <td className="px-5 py-3">
-                                  {row.status.toUpperCase() === 'PENDING' ? (
+                                  {isIncidentActionable(row.status) ? (
                                     <div className="flex items-center justify-end gap-2">
                                       <button
                                         type="button"
@@ -846,22 +913,28 @@ export default function ChiefDashboardPage({
                                       >
                                         Resolve
                                       </button>
-                                      <button
-                                        type="button"
-                                        disabled={incidentActionId === row.id}
-                                        onClick={() => {
-                                          recordIncidentView(row.id, chiefId, 'chief');
-                                          setTransferTargetRole('secretary');
-                                          setIncidentModal({
-                                            mode: 'transfer',
-                                            incidentId: row.id,
-                                            incidentLabel: row.tracking_number ?? row.incident_type,
-                                          });
-                                        }}
-                                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
-                                      >
-                                        Transfer
-                                      </button>
+                                      {isEmergencyIncident(row) ? (
+                                        <span className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500">
+                                          Not transferable
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          disabled={incidentActionId === row.id}
+                                          onClick={() => {
+                                            recordIncidentView(row.id, chiefId, 'chief');
+                                            setTransferTargetRole('secretary');
+                                            setIncidentModal({
+                                              mode: 'transfer',
+                                              incidentId: row.id,
+                                              incidentLabel: row.tracking_number ?? row.incident_type,
+                                            });
+                                          }}
+                                          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+                                        >
+                                          Transfer
+                                        </button>
+                                      )}
                                     </div>
                                   ) : (
                                     <div className="text-xs text-gray-400 text-right">No action</div>
@@ -891,6 +964,17 @@ export default function ChiefDashboardPage({
           void handleIncidentActionConfirm();
         }}
         isSubmitting={incidentActionId !== null}
+      />
+      <IncidentDetailsModal
+        open={incidentDetails !== null}
+        incident={incidentDetails}
+        onClose={() => setIncidentDetails(null)}
+        canAccept={incidentDetails ? incidentDetails.status.toUpperCase() === 'PENDING' : false}
+        onAccept={() => {
+          if (!incidentDetails) return;
+          void handleAccept(incidentDetails.id);
+        }}
+        isAccepting={incidentDetails ? incidentActionId === incidentDetails.id : false}
       />
     </div>
   );

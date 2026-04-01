@@ -75,11 +75,27 @@ if (strtoupper((string)($incident['status'] ?? '')) === 'TRANSFERRED') {
     ]);
 }
 
-if (strtoupper((string)($incident['status'] ?? '')) !== 'PENDING') {
+if (!in_array(strtoupper((string)($incident['status'] ?? '')), ['PENDING', 'IN_PROGRESS', 'ONGOING', 'ON GOING', 'ON_GOING'], true)) {
     $conn->close();
     api_send_json(400, [
         'ok' => false,
-        'error' => 'Only pending incidents can be transferred',
+        'error' => 'Only pending or on going incidents can be transferred',
+    ]);
+}
+
+$incidentTracking = strtoupper(trim((string)($incident['tracking_number'] ?? '')));
+$incidentTypeUpper = strtoupper(trim((string)($incident['incident_type'] ?? '')));
+$incidentCategoryUpper = strtoupper(trim((string)($incident['incident_category'] ?? '')));
+$isEmergencyIncident =
+    strpos($incidentTracking, 'EMG-') === 0
+    || strpos($incidentTypeUpper, 'EMERGENCY') !== false
+    || strpos($incidentCategoryUpper, 'EMERGENCY') !== false;
+
+if ($isEmergencyIncident) {
+    $conn->close();
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Emergency reports are not transferable',
     ]);
 }
 
@@ -93,6 +109,8 @@ if ($residentId <= 0) {
 }
 
 $incidentType = trim((string)($incident['incident_type'] ?? ''));
+$incidentTrackingNumber = trim((string)($incident['tracking_number'] ?? ''));
+$trackingNumberVal = $incidentTrackingNumber !== '' ? $incidentTrackingNumber : null;
 $complaintTitle = $incidentType !== '' ? 'Incident: ' . $incidentType : 'Incident Report';
 $respondentAddress = trim((string)($incident['sitio'] ?? ''));
 if ($respondentAddress === '') {
@@ -106,7 +124,7 @@ $witnessVal = $incident['witness'] ?? null;
 $evidencePath = $incident['evidence_path'] ?? null;
 $evidenceMime = $incident['evidence_mime'] ?? null;
 
-$insert = $conn->prepare('INSERT INTO complaints (resident_id, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status, assigned_role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$insert = $conn->prepare('INSERT INTO complaints (resident_id, tracking_number, complaint_title, complaint_type, complaint_category, sitio, respondent_name, respondent_address, description, witness, evidence_path, evidence_mime, status, assigned_role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 if (!$insert) {
     $conn->close();
     api_send_json(500, [
@@ -116,8 +134,9 @@ if (!$insert) {
 }
 
 $insert->bind_param(
-    'issssssssssss',
+    'isssssssssssss',
     $residentId,
+    $trackingNumberVal,
     $complaintTitle,
     $incident['incident_type'],
     $incident['incident_category'],
@@ -163,7 +182,7 @@ if ($residentId > 0) {
     notify_incident_status($conn, $residentId, 'TRANSFERRED', $incidentType, $trackingNumber);
 }
 
-$update = $conn->prepare("UPDATE incidents SET status = 'TRANSFERRED', transferred_at = NOW() WHERE id = ? AND UPPER(status) = 'PENDING'");
+$update = $conn->prepare("UPDATE incidents SET status = 'TRANSFERRED', transferred_at = NOW() WHERE id = ? AND UPPER(status) IN ('PENDING', 'IN_PROGRESS', 'ONGOING', 'ON GOING', 'ON_GOING')");
 if (!$update) {
     $conn->close();
     api_send_json(500, [

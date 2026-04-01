@@ -48,6 +48,8 @@ type ComplaintRow = {
   has_hearing?: boolean;
 };
 
+type ComplaintReportType = 'COMPLAINT' | 'INCIDENT' | 'EMERGENCY';
+
 type HearingRow = {
   id: number;
   complaint_id: number;
@@ -287,9 +289,27 @@ export default function SecretaryDashboardPage({
   const [residentFilterSitio, setResidentFilterSitio] = useState('ALL');
   const [complaintSearch, setComplaintSearch] = useState('');
   const [complaintFilterCategory, setComplaintFilterCategory] = useState('ALL');
+  const [complaintFilterReportType, setComplaintFilterReportType] = useState<'ALL' | ComplaintReportType>('ALL');
   const [hearingSearch, setHearingSearch] = useState('');
   const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
   const [caseResolutionFilterMethod, setCaseResolutionFilterMethod] = useState('ALL');
+
+  const getComplaintReportType = (row: ComplaintRow): ComplaintReportType => {
+    const tracking = (row.tracking_number ?? '').toUpperCase();
+    if (tracking.startsWith('EMG-')) return 'EMERGENCY';
+    if (tracking.startsWith('INC-')) return 'INCIDENT';
+    if (tracking.startsWith('CMP-')) return 'COMPLAINT';
+
+    // Fallback for old transferred records without tracking number.
+    const title = (row.complaint_title ?? '').toLowerCase();
+    const type = (row.complaint_type ?? '').toLowerCase();
+    const category = (row.complaint_category ?? '').toLowerCase();
+    if (title.startsWith('incident:') || type.includes('emergency') || category.includes('emergency')) {
+      return type.includes('emergency') || category.includes('emergency') ? 'EMERGENCY' : 'INCIDENT';
+    }
+
+    return 'COMPLAINT';
+  };
 
   // Data-aware search items
   const navItems = useMemo<NavItem[]>(() => {
@@ -399,8 +419,9 @@ export default function SecretaryDashboardPage({
       );
     }
     if (complaintFilterCategory !== 'ALL') data = data.filter(c => c.complaint_category === complaintFilterCategory);
+    if (complaintFilterReportType !== 'ALL') data = data.filter(c => getComplaintReportType(c) === complaintFilterReportType);
     return data;
-  }, [complaints, complaintSearch, complaintFilterCategory]);
+  }, [complaints, complaintSearch, complaintFilterCategory, complaintFilterReportType]);
 
   const filteredHearings = useMemo(() => {
     if (!hearingSearch) return hearings;
@@ -2004,13 +2025,23 @@ export default function SecretaryDashboardPage({
                         <option key={c} value={c}>{c === 'ALL' ? 'All Categories' : c}</option>
                       ))}
                     </select>
+                    <select
+                      value={complaintFilterReportType}
+                      onChange={(e) => setComplaintFilterReportType(e.target.value as 'ALL' | ComplaintReportType)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    >
+                      <option value="ALL">All Report Types</option>
+                      <option value="COMPLAINT">Complaint</option>
+                      <option value="INCIDENT">Incident</option>
+                      <option value="EMERGENCY">Emergency</option>
+                    </select>
                   </div>
 
                   {complaintsLoading ? (
                     <div className="p-6 text-sm text-gray-600">Loading…</div>
                   ) : filteredComplaints.length === 0 ? (
                     <div className="p-6 text-sm text-gray-600">
-                      {complaintSearch || complaintFilterCategory !== 'ALL'
+                      {complaintSearch || complaintFilterCategory !== 'ALL' || complaintFilterReportType !== 'ALL'
                         ? 'No matching complaints found.'
                         : complaintStatus === 'ALL'
                           ? 'No complaints found yet.'
@@ -2038,6 +2069,17 @@ export default function SecretaryDashboardPage({
                               <td className="px-5 py-3 text-gray-700">{row.resident_name ?? '-'}</td>
                               <td className="px-5 py-3 text-gray-700">
                                 <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                                <div className="mt-1">
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                    getComplaintReportType(row) === 'EMERGENCY'
+                                      ? 'bg-red-100 text-red-700'
+                                      : getComplaintReportType(row) === 'INCIDENT'
+                                        ? 'bg-indigo-100 text-indigo-700'
+                                        : 'bg-emerald-100 text-emerald-700'
+                                  }`}>
+                                    {getComplaintReportType(row)}
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-5 py-3 text-gray-700">{row.complaint_category}</td>
                               <td className="px-5 py-3 text-gray-700">{row.sitio}</td>

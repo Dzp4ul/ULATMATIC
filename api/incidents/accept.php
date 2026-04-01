@@ -34,7 +34,7 @@ if ($id <= 0) {
 $conn = api_db();
 api_ensure_incident_schema($conn);
 
-$stmt = $conn->prepare("UPDATE incidents SET status = 'RESOLVED', resolved_at = NOW() WHERE id = ? AND UPPER(status) IN ('PENDING', 'IN_PROGRESS', 'ONGOING', 'ON GOING', 'ON_GOING')");
+$stmt = $conn->prepare("UPDATE incidents SET status = 'IN_PROGRESS' WHERE id = ? AND UPPER(status) = 'PENDING'");
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -48,22 +48,25 @@ $stmt->execute();
 $affected = $stmt->affected_rows;
 $stmt->close();
 
-// Notify resident about resolved incident
 if ($affected > 0) {
     $incRow = $conn->query("SELECT resident_id, incident_type, tracking_number FROM incidents WHERE id = $id")->fetch_assoc();
     if ($incRow && (int)$incRow['resident_id'] > 0) {
-        $incidentLabel = !empty($incRow['incident_type']) ? $incRow['incident_type'] : $incRow['tracking_number'];
+        $residentId = (int)$incRow['resident_id'];
+        $incidentType = (string)($incRow['incident_type'] ?? '');
+        $trackingNumber = (string)($incRow['tracking_number'] ?? '');
+        $incidentLabel = $incidentType !== '' ? $incidentType : ($trackingNumber !== '' ? $trackingNumber : ('Incident #' . $id));
+
         create_notification(
             $conn,
-            (int)$incRow['resident_id'],
+            $residentId,
             'resident',
-            'Incident Resolved',
-            'Your incident report "' . $incidentLabel . '" has been resolved.',
+            'Incident Accepted',
+            'Your incident report "' . $incidentLabel . '" is now on going.',
             'incident',
             $id
         );
-        // Send email notification
-        notify_incident_status($conn, (int)$incRow['resident_id'], 'RESOLVED', $incRow['incident_type'] ?? '', $incRow['tracking_number'] ?? '');
+
+        notify_incident_status($conn, $residentId, 'IN_PROGRESS', $incidentType, $trackingNumber);
     }
 }
 
@@ -72,12 +75,13 @@ $conn->close();
 if ($affected <= 0) {
     api_send_json(404, [
         'ok' => false,
-        'error' => 'Incident not found or not in a resolvable state',
+        'error' => 'Incident not found or not pending',
     ]);
 }
 
 api_send_json(200, [
     'ok' => true,
     'id' => $id,
-    'status' => 'RESOLVED',
+    'status' => 'IN_PROGRESS',
 ]);
+

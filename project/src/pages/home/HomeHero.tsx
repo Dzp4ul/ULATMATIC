@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { getLastEmergencyTrackingNumber } from '../../utils/emergency-report-session';
 
 export default function HomeHero({
   backgroundSrc,
@@ -17,6 +18,7 @@ export default function HomeHero({
   const [prevSrc, setPrevSrc] = useState<string | null>(null);
   const [currentSrc, setCurrentSrc] = useState(backgroundSrc);
   const [showNew, setShowNew] = useState(true);
+  const [hasSavedEmergencyReport, setHasSavedEmergencyReport] = useState(false);
 
   useEffect(() => {
     if (backgroundSrc === currentSrc) return;
@@ -35,6 +37,10 @@ export default function HomeHero({
       window.clearTimeout(timeout);
     };
   }, [backgroundSrc, currentSrc]);
+
+  useEffect(() => {
+    setHasSavedEmergencyReport(Boolean(getLastEmergencyTrackingNumber()));
+  }, []);
 
   return (
     <section id="home" className="pt-20 pb-16">
@@ -57,6 +63,11 @@ export default function HomeHero({
             <button onClick={() => onNavigate('/emergency-report')} className="bg-brand hover:bg-brand/90 text-white font-semibold px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
               File a Report
             </button>
+            {hasSavedEmergencyReport && (
+              <button onClick={() => onNavigate('/emergency-report')} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                Continue Submitted Emergency Report
+              </button>
+            )}
             <button onClick={() => onNavigate('/track')} className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-lg border-2 border-gray-300 transition-all">
               Track Report Status
             </button>

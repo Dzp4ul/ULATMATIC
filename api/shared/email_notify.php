@@ -112,6 +112,6 @@ function notify_case_resolved(mysqli $conn, int $residentId, string $complaintTi
 function notify_incident_status(mysqli $conn, int $residentId, string $status, string $incidentType, string $trackingNumber): bool
 {
     $body = api_incident_status_email($status, $incidentType, $trackingNumber);
-    $subject = 'Incident Report ' . ucfirst(strtolower($status));
+    $subject = 'Incident Report ' . ucfirst(strtolower(str_replace('_', ' ', $status)));
     return send_resident_email($conn, $residentId, $subject, $body);
 }

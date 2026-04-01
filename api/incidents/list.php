@@ -59,9 +59,13 @@ if ($residentId > 0 && !$all) {
 }
 
 if ($status !== '' && $status !== 'ALL') {
-    $conditions[] = 'status = ?';
-    $params[] = $status;
-    $types .= 's';
+    if ($status === 'ACTIVE') {
+        $conditions[] = "UPPER(status) IN ('PENDING', 'IN_PROGRESS', 'ONGOING', 'ON GOING', 'ON_GOING')";
+    } else {
+        $conditions[] = 'status = ?';
+        $params[] = $status;
+        $types .= 's';
+    }
 }
 
 $sql = 'SELECT id, resident_id, tracking_number, incident_type, incident_category, sitio, description, witness, evidence_path, evidence_mime, status, created_at, resolved_at, transferred_at FROM incidents';
