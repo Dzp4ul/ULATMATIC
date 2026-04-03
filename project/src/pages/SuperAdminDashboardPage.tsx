@@ -8,7 +8,6 @@ import {
   LogOut,
   Menu,
   Plus,
-  Power,
   Search,
   Shield,
   User,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavSearch, type NavItem } from '../components/NavSearch';
+import { Pagination, paginate } from '../components/Pagination';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 const API = 'http://localhost/ULATMATIC/api';
@@ -99,7 +99,7 @@ export default function SuperAdminDashboardPage({
   onNavigate: (to: string) => void;
 }) {
   /* ─── state ─── */
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
   const [adminName, setAdminName] = useState('');
   const [adminId, setAdminId] = useState(0);
   const [profileName, setProfileName] = useState('');
@@ -115,6 +115,11 @@ export default function SuperAdminDashboardPage({
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const [activeView, setActiveView] = useState<'dashboard' | 'users' | 'profile'>('dashboard');
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [activeView]);
 
   // User management
   const [activeRole, setActiveRole] = useState<RoleKey>('secretary');
@@ -143,6 +148,8 @@ export default function SuperAdminDashboardPage({
 
   // Toggle status
   const [toggleLoading, setToggleLoading] = useState<number | null>(null);
+  const [usersPage, setUsersPage] = useState(1);
+  const [selfToggleToast, setSelfToggleToast] = useState(false);
 
   // Dashboard stats
   const [stats, setStats] = useState<Record<RoleKey, number>>({ secretary: 0, captain: 0, chief: 0, pio: 0, superadmin: 0 });
@@ -263,6 +270,7 @@ export default function SuperAdminDashboardPage({
     const q = userSearch.toLowerCase();
     return list.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   }, [roleUsers, activeRole, userSearch]);
+  const pagedUsers = paginate(filteredUsers, usersPage);
 
   /* ─── modal helpers ─── */
   const openCreate = () => {
@@ -332,6 +340,18 @@ export default function SuperAdminDashboardPage({
   };
 
   const handleToggleStatus = async (role: RoleKey, user: RoleUser) => {
+    // Block self-deactivation
+    if (role === 'superadmin' && user.id === adminId && (user.status || 'active') === 'active') {
+      setSelfToggleToast(true);
+      setTimeout(() => setSelfToggleToast(false), 3000);
+      return;
+    }
+    // Optimistic update
+    const newStatus = (user.status || 'active') === 'active' ? 'inactive' : 'active';
+    setRoleUsers((prev) => ({
+      ...prev,
+      [role]: prev[role].map((u) => u.id === user.id ? { ...u, status: newStatus } : u),
+    }));
     setToggleLoading(user.id);
     try {
       const res = await fetch(`${API}/superadmin/toggle_status.php`, {
@@ -340,15 +360,20 @@ export default function SuperAdminDashboardPage({
         body: JSON.stringify({ role, user_id: user.id }),
       });
       const data = (await res.json()) as { ok?: boolean; new_status?: string; error?: string };
-      if (!res.ok || !data.ok) return;
-      // Update user in local state
+      if (!res.ok || !data.ok) {
+        // Revert on failure
+        setRoleUsers((prev) => ({
+          ...prev,
+          [role]: prev[role].map((u) => u.id === user.id ? { ...u, status: user.status } : u),
+        }));
+      }
+    } catch {
+      // Revert on network error
       setRoleUsers((prev) => ({
         ...prev,
-        [role]: prev[role].map((u) =>
-          u.id === user.id ? { ...u, status: data.new_status ?? 'active' } : u
-        ),
+        [role]: prev[role].map((u) => u.id === user.id ? { ...u, status: user.status } : u),
       }));
-    } catch { /* ignore */ } finally {
+    } finally {
       setToggleLoading(null);
     }
   };
@@ -362,13 +387,20 @@ export default function SuperAdminDashboardPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
+        {sidebarOpen ? (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          />
+        ) : null}
+
         {/* Sidebar */}
         <aside
-          className={
-            sidebarOpen
-              ? 'w-72 shrink-0 bg-brand text-white'
-              : 'hidden w-72 shrink-0 bg-brand text-white lg:block'
-          }
+          className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col bg-brand text-white shadow-2xl transition-transform duration-200 lg:static lg:translate-x-0 lg:shadow-none ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
           <div className="flex items-center gap-3 px-6 py-5">
             <div className="flex h-10 w-10 items-center justify-center">
@@ -596,6 +628,12 @@ export default function SuperAdminDashboardPage({
                   </button>
                 </div>
 
+                {selfToggleToast ? (
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                    You cannot deactivate your own account.
+                  </div>
+                ) : null}
+
                 {/* Role tabs */}
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   {ROLES.map((r) => (
@@ -620,7 +658,7 @@ export default function SuperAdminDashboardPage({
                   <input
                     type="text"
                     value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
+                    onChange={(e) => { setUserSearch(e.target.value); setUsersPage(1); }}
                     placeholder="Search by name or email…"
                     className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
                   />
@@ -654,7 +692,7 @@ export default function SuperAdminDashboardPage({
                           </td>
                         </tr>
                       ) : (
-                        filteredUsers.map((u) => (
+                        pagedUsers.map((u) => (
                           <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-3">
@@ -693,14 +731,16 @@ export default function SuperAdminDashboardPage({
                                   type="button"
                                   disabled={toggleLoading === u.id}
                                   onClick={() => handleToggleStatus(activeRole, u)}
-                                  className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${
-                                    (u.status || 'active') === 'active'
-                                      ? 'text-gray-500 hover:bg-red-50 hover:text-red-600'
-                                      : 'text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'
-                                  }`}
                                   title={(u.status || 'active') === 'active' ? 'Deactivate' : 'Activate'}
+                                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                                    (u.status || 'active') === 'active' ? 'bg-emerald-500' : 'bg-gray-300'
+                                  }`}
                                 >
-                                  <Power className="h-4 w-4" />
+                                  <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                                      (u.status || 'active') === 'active' ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                  />
                                 </button>
                               </div>
                             </td>
@@ -709,6 +749,7 @@ export default function SuperAdminDashboardPage({
                       )}
                     </tbody>
                   </table>
+                  <Pagination total={filteredUsers.length} page={usersPage} onPage={setUsersPage} />
                 </div>
               </>
 

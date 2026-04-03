@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageCircle,
   Search,
   ShieldAlert,
   User,
@@ -209,7 +208,6 @@ export default function ResidentDashboardPage({
     | 'hearing_schedules'
     | 'incident_report'
     | 'my_incidents'
-    | 'messages'
   >('dashboard');
   const [profileFname, setProfileFname] = useState('');
   const [profileMidname, setProfileMidname] = useState('');
@@ -888,9 +886,7 @@ export default function ResidentDashboardPage({
               ? 'Incident Report'
               : activeView === 'my_incidents'
                 ? 'My Incident Reports'
-                : activeView === 'profile'
-                  ? 'Profile Settings'
-                  : 'Messages';
+                : 'Profile Settings';
 
   const selectedEvidenceUrl = selectedComplaint?.evidence_path
     ? `http://localhost/ULATMATIC/${selectedComplaint.evidence_path}`
@@ -981,10 +977,6 @@ export default function ResidentDashboardPage({
               onClick={() => setActiveView('my_incidents')}
             />
             <SidebarItem
-              label="Messages"
-              icon={<MessageCircle className="h-5 w-5" />}
-              active={activeView === 'messages'}
-              onClick={() => setActiveView('messages')}
             />
           </nav>
 

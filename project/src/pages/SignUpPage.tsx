@@ -282,6 +282,23 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
         <div className="flex items-center justify-center px-4 py-10">
           <div className="w-full max-w-xl">
+            <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-sm lg:hidden">
+              <div className="flex min-w-0 items-center gap-3">
+                <img src={logo} alt="ULATMATIC logo" className="h-9 w-9 object-contain" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold text-gray-900">ULATMATIC</div>
+                  <div className="truncate text-xs text-gray-500">Barangay Bigte, Norzagaray</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('/')}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Home
+              </button>
+            </div>
+
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900">Sign Up</h2>
               <p className="text-sm text-gray-600 mt-1">Please fill out the details below.</p>

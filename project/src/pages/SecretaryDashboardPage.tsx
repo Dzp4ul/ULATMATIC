@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageCircle,
   Search,
   User,
   Users,
@@ -17,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NotificationBell } from '../components/NotificationBell';
 import { NavSearch, type NavItem } from '../components/NavSearch';
+import { Pagination, paginate } from '../components/Pagination';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -194,7 +194,7 @@ export default function SecretaryDashboardPage({
 }: {
   onNavigate: (to: string) => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
   const [secretaryName, setSecretaryName] = useState<string>('');
   const [secretaryId, setSecretaryId] = useState<number>(0);
   const [profileName, setProfileName] = useState('');
@@ -213,6 +213,11 @@ export default function SecretaryDashboardPage({
   const [activeView, setActiveView] = useState<'dashboard' | 'profile' | 'residents' | 'complaints' | 'complaint_detail' | 'hearings' | 'hearing_detail' | 'case_resolutions' | 'case_report'>(
     'dashboard'
   );
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [activeView]);
   const [residentsTab, setResidentsTab] = useState<'pending' | 'approved'>('pending');
   const [residentsLoading, setResidentsLoading] = useState(false);
   const [residentsError, setResidentsError] = useState<string | null>(null);
@@ -293,6 +298,10 @@ export default function SecretaryDashboardPage({
   const [hearingSearch, setHearingSearch] = useState('');
   const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
   const [caseResolutionFilterMethod, setCaseResolutionFilterMethod] = useState('ALL');
+  const [residentsPage, setResidentsPage] = useState(1);
+  const [complaintsPage, setComplaintsPage] = useState(1);
+  const [hearingsPage, setHearingsPage] = useState(1);
+  const [caseResPage, setCaseResPage] = useState(1);
 
   const getComplaintReportType = (row: ComplaintRow): ComplaintReportType => {
     const tracking = (row.tracking_number ?? '').toUpperCase();
@@ -450,6 +459,11 @@ export default function SecretaryDashboardPage({
     if (caseResolutionFilterMethod !== 'ALL') data = data.filter(h => h.resolution_method === caseResolutionFilterMethod);
     return data;
   }, [caseResolutionHearings, caseResolutionSearch, caseResolutionFilterMethod]);
+  const pagedResidents = paginate(filteredResidents, residentsPage);
+  const pagedApprovedResidents = paginate(filteredApprovedResidents, residentsPage);
+  const pagedComplaints = paginate(filteredComplaints, complaintsPage);
+  const pagedHearings = paginate(filteredHearings, hearingsPage);
+  const pagedCaseResolutions = paginate(filteredCaseResolutions, caseResPage);
 
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState<{
@@ -1014,13 +1028,20 @@ export default function SecretaryDashboardPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
+        {sidebarOpen ? (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          />
+        ) : null}
+
         {/* Sidebar */}
         <aside
-          className={
-            sidebarOpen
-              ? 'w-72 shrink-0 bg-brand text-white'
-              : 'hidden w-72 shrink-0 bg-brand text-white lg:block'
-          }
+          className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col bg-brand text-white shadow-2xl transition-transform duration-200 lg:static lg:translate-x-0 lg:shadow-none ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
           <div className="flex items-center gap-3 px-6 py-5">
             <div className="flex h-10 w-10 items-center justify-center">
@@ -1192,7 +1213,6 @@ export default function SecretaryDashboardPage({
               </div>
             ) : null}
             <SidebarItem label="Case Reports" icon={<FileText className="h-5 w-5" />} active={activeView === 'case_report'} onClick={() => setActiveView('case_report')} />
-            <SidebarItem label="Messages" icon={<MessageCircle className="h-5 w-5" />} />
           </nav>
 
           <div className="mt-auto px-4 pb-6 pt-6" />
@@ -1602,13 +1622,13 @@ export default function SecretaryDashboardPage({
                         type="text"
                         placeholder="Search by name, email…"
                         value={residentSearch}
-                        onChange={(e) => setResidentSearch(e.target.value)}
+                        onChange={(e) => { setResidentSearch(e.target.value); setResidentsPage(1); }}
                         className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                       />
                     </div>
                     <select
                       value={residentFilterSitio}
-                      onChange={(e) => setResidentFilterSitio(e.target.value)}
+                      onChange={(e) => { setResidentFilterSitio(e.target.value); setResidentsPage(1); }}
                       className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                     >
                       {residentSitioOptions.map((s) => (
@@ -1636,7 +1656,7 @@ export default function SecretaryDashboardPage({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
-                            {filteredResidents.map((r) => {
+                            {pagedResidents.map((r) => {
                               const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
                               const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
                               const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
@@ -1735,6 +1755,7 @@ export default function SecretaryDashboardPage({
                             })}
                           </tbody>
                         </table>
+                        <Pagination total={filteredResidents.length} page={residentsPage} onPage={setResidentsPage} />
                       </div>
                     )
                   ) : filteredApprovedResidents.length === 0 ? (
@@ -1752,7 +1773,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {filteredApprovedResidents.map((r) => {
+                          {pagedApprovedResidents.map((r) => {
                             const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
                             const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
                             const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
@@ -1785,6 +1806,7 @@ export default function SecretaryDashboardPage({
                           })}
                         </tbody>
                       </table>
+                      <Pagination total={filteredApprovedResidents.length} page={residentsPage} onPage={setResidentsPage} />
                     </div>
                   )}
                 </div>
@@ -2012,13 +2034,13 @@ export default function SecretaryDashboardPage({
                         type="text"
                         placeholder="Search by tracking #, name, title…"
                         value={complaintSearch}
-                        onChange={(e) => setComplaintSearch(e.target.value)}
+                        onChange={(e) => { setComplaintSearch(e.target.value); setComplaintsPage(1); }}
                         className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                       />
                     </div>
                     <select
                       value={complaintFilterCategory}
-                      onChange={(e) => setComplaintFilterCategory(e.target.value)}
+                      onChange={(e) => { setComplaintFilterCategory(e.target.value); setComplaintsPage(1); }}
                       className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                     >
                       {complaintCategoryOptions.map((c) => (
@@ -2063,7 +2085,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {filteredComplaints.map((row) => (
+                          {pagedComplaints.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3 text-gray-700">{row.resident_name ?? '-'}</td>
@@ -2124,6 +2146,7 @@ export default function SecretaryDashboardPage({
                           ))}
                         </tbody>
                       </table>
+                      <Pagination total={filteredComplaints.length} page={complaintsPage} onPage={setComplaintsPage} />
                     </div>
                   )}
                 </div>
@@ -2169,7 +2192,7 @@ export default function SecretaryDashboardPage({
                         type="text"
                         placeholder="Search by case #, title, location…"
                         value={hearingSearch}
-                        onChange={(e) => setHearingSearch(e.target.value)}
+                        onChange={(e) => { setHearingSearch(e.target.value); setHearingsPage(1); }}
                         className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                       />
                     </div>
@@ -2200,7 +2223,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {filteredHearings.map((row) => (
+                          {pagedHearings.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3 text-gray-700">
@@ -2229,6 +2252,7 @@ export default function SecretaryDashboardPage({
                           ))}
                         </tbody>
                       </table>
+                      <Pagination total={filteredHearings.length} page={hearingsPage} onPage={setHearingsPage} />
                     </div>
                   )}
                 </div>
@@ -2438,13 +2462,13 @@ export default function SecretaryDashboardPage({
                         type="text"
                         placeholder="Search by case #, complaint…"
                         value={caseResolutionSearch}
-                        onChange={(e) => setCaseResolutionSearch(e.target.value)}
+                        onChange={(e) => { setCaseResolutionSearch(e.target.value); setCaseResPage(1); }}
                         className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                       />
                     </div>
                     <select
                       value={caseResolutionFilterMethod}
-                      onChange={(e) => setCaseResolutionFilterMethod(e.target.value)}
+                      onChange={(e) => { setCaseResolutionFilterMethod(e.target.value); setCaseResPage(1); }}
                       className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                     >
                       {caseResolutionMethodOptions.map((m) => (
@@ -2476,7 +2500,7 @@ export default function SecretaryDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {filteredCaseResolutions.map((row) => (
+                          {pagedCaseResolutions.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
                               <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
                               <td className="px-5 py-3">
@@ -2519,6 +2543,7 @@ export default function SecretaryDashboardPage({
                           ))}
                         </tbody>
                       </table>
+                      <Pagination total={filteredCaseResolutions.length} page={caseResPage} onPage={setCaseResPage} />
                     </div>
                   )}
                 </div>

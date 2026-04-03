@@ -16,6 +16,7 @@ import { IncidentActionModal } from '../components/IncidentActionModal';
 import { IncidentDetailsModal, type IncidentDetailsData } from '../components/IncidentDetailsModal';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
+import { Pagination, paginate } from '../components/Pagination';
 import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
 import { recordIncidentView } from '../utils/incident-tracking';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
@@ -108,10 +109,15 @@ export default function PioDashboardPage({
 }: {
   onNavigate: (to: string) => void;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
   const [pioName, setPioName] = useState<string>('');
   const [pioId, setPioId] = useState<number>(0);
   const [activeView, setActiveView] = useState<'dashboard' | 'incidents' | 'profile'>('dashboard');
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [activeView]);
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -134,6 +140,7 @@ export default function PioDashboardPage({
   const [dashboardChartLoading, setDashboardChartLoading] = useState(false);
   const [incidentMonthlyData, setIncidentMonthlyData] = useState<IncidentMonthlyDatum[]>([]);
   const [summary, setSummary] = useState({ pending: 0, resolved: 0, transferred: 0 });
+  const [incidentsPage, setIncidentsPage] = useState(1);
   const navItems = useMemo<NavItem[]>(() => {
     return incidents.map((inc) => ({
       label: `${inc.incident_type}${inc.tracking_number ? ` (${inc.tracking_number})` : ''}`,
@@ -492,12 +499,19 @@ export default function PioDashboardPage({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
+        {sidebarOpen ? (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          />
+        ) : null}
+
         <aside
-          className={
-            sidebarOpen
-              ? 'w-72 shrink-0 bg-brand text-white'
-              : 'hidden w-72 shrink-0 bg-brand text-white lg:block'
-          }
+          className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col bg-brand text-white shadow-2xl transition-transform duration-200 lg:static lg:translate-x-0 lg:shadow-none ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
           <div className="flex items-center gap-3 px-6 py-5">
             <div className="flex h-10 w-10 items-center justify-center">
@@ -862,7 +876,7 @@ export default function PioDashboardPage({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {incidents.map((row) => {
+                          {paginate(incidents, incidentsPage).map((row) => {
                             const evidenceUrl = row.evidence_path
                               ? `http://localhost/ULATMATIC/${row.evidence_path}`
                               : null;
@@ -940,6 +954,7 @@ export default function PioDashboardPage({
                           })}
                         </tbody>
                       </table>
+                      <Pagination total={incidents.length} page={incidentsPage} onPage={setIncidentsPage} />
                     </div>
                   )}
                 </div>
