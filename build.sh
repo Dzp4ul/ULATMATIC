@@ -1,9 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "==> Installing Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
+echo "==> Installing Node.js via nvm..."
+export NVM_DIR="$HOME/.nvm"
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+nvm install 20
+nvm use 20
 
 echo "==> Node version: $(node -v)"
 echo "==> NPM version: $(npm -v)"
