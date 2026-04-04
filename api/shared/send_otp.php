@@ -9,6 +9,18 @@ require_once __DIR__ . '/email_template.php';
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\PHPMailer;
 
+function api_send_otp_error(int $statusCode, string $publicMessage, string $logMessage = ''): void
+{
+    if ($logMessage !== '') {
+        error_log('[send_otp] ' . $logMessage);
+    }
+
+    api_send_json($statusCode, [
+        'ok' => false,
+        'error' => $publicMessage,
+    ]);
+}
+
 api_apply_cors();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -23,110 +35,86 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     ]);
 }
 
-$autoload = __DIR__ . '/../../vendor/autoload.php';
-if (!file_exists($autoload)) {
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'PHPMailer not found. Please run composer install in ULATMATIC root.',
-    ]);
-}
-
-require_once $autoload;
-
-$body = api_read_json_body();
-$email = trim((string)($body['email'] ?? ''));
-
-if ($email === '') {
-    api_send_json(400, [
-        'ok' => false,
-        'error' => 'Email is required',
-    ]);
-}
-
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    api_send_json(400, [
-        'ok' => false,
-        'error' => 'Invalid email address',
-    ]);
-}
-
 try {
-    $otp = (string)random_int(100000, 999999);
-} catch (Throwable $e) {
-    error_log('OTP generation failed: ' . $e->getMessage());
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'Failed to generate OTP',
-    ]);
-}
+    $autoload = __DIR__ . '/../../vendor/autoload.php';
+    if (!is_file($autoload)) {
+        api_send_otp_error(500, 'OTP service unavailable. Missing mailer dependency.', 'vendor/autoload.php not found');
+    }
 
-$otpHash = password_hash($otp, PASSWORD_DEFAULT);
-$expiresAt = (new DateTimeImmutable('now'))->modify('+10 minutes')->format('Y-m-d H:i:s');
+    require_once $autoload;
+    if (!class_exists(PHPMailer::class)) {
+        api_send_otp_error(500, 'OTP service unavailable. Mailer class not found.', 'PHPMailer class missing after autoload');
+    }
 
-$conn = api_db();
+    $body = api_read_json_body();
+    $email = trim((string)($body['email'] ?? ''));
 
-$tableReady = $conn->query(
-    "CREATE TABLE IF NOT EXISTS email_otps (\n"
-        . "  email VARCHAR(255) NOT NULL PRIMARY KEY,\n"
-        . "  otp_hash VARCHAR(255) NOT NULL,\n"
-        . "  expires_at DATETIME NOT NULL,\n"
-        . "  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
-        . "  attempts INT NOT NULL DEFAULT 0\n"
-        . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-);
-if ($tableReady === false) {
-    $dbErr = $conn->error;
-    $conn->close();
-    error_log('OTP table init failed: ' . $dbErr);
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'OTP service unavailable. Please try again.',
-    ]);
-}
+    if ($email === '') {
+        api_send_otp_error(400, 'Email is required');
+    }
 
-$stmt = $conn->prepare(
-    'INSERT INTO email_otps (email, otp_hash, expires_at, attempts) VALUES (?, ?, ?, 0) '
-        . 'ON DUPLICATE KEY UPDATE otp_hash = VALUES(otp_hash), expires_at = VALUES(expires_at), attempts = 0'
-);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        api_send_otp_error(400, 'Invalid email address');
+    }
 
-if (!$stmt) {
-    $conn->close();
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'OTP save failed',
-    ]);
-}
+    try {
+        $otp = (string)random_int(100000, 999999);
+    } catch (Throwable $e) {
+        api_send_otp_error(500, 'Failed to generate OTP', 'OTP generation failed: ' . $e->getMessage());
+    }
 
-$stmt->bind_param('sss', $email, $otpHash, $expiresAt);
-if (!$stmt->execute()) {
-    $dbErr = $stmt->error;
+    $otpHash = password_hash($otp, PASSWORD_DEFAULT);
+    $expiresAt = (new DateTimeImmutable('now'))->modify('+10 minutes')->format('Y-m-d H:i:s');
+
+    $conn = api_db();
+
+    $tableReady = $conn->query(
+        "CREATE TABLE IF NOT EXISTS email_otps (\n"
+            . "  email VARCHAR(255) NOT NULL PRIMARY KEY,\n"
+            . "  otp_hash VARCHAR(255) NOT NULL,\n"
+            . "  expires_at DATETIME NOT NULL,\n"
+            . "  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
+            . "  attempts INT NOT NULL DEFAULT 0\n"
+            . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+    if ($tableReady === false) {
+        $dbErr = $conn->error;
+        $conn->close();
+        api_send_otp_error(500, 'OTP service unavailable. Please try again.', 'OTP table init failed: ' . $dbErr);
+    }
+
+    $stmt = $conn->prepare(
+        'INSERT INTO email_otps (email, otp_hash, expires_at, attempts) VALUES (?, ?, ?, 0) '
+            . 'ON DUPLICATE KEY UPDATE otp_hash = VALUES(otp_hash), expires_at = VALUES(expires_at), attempts = 0'
+    );
+
+    if (!$stmt) {
+        $dbErr = $conn->error;
+        $conn->close();
+        api_send_otp_error(500, 'OTP save failed', 'OTP prepare failed: ' . $dbErr);
+    }
+
+    $stmt->bind_param('sss', $email, $otpHash, $expiresAt);
+    if (!$stmt->execute()) {
+        $dbErr = $stmt->error;
+        $stmt->close();
+        $conn->close();
+        api_send_otp_error(500, 'OTP save failed', 'OTP save execute failed: ' . $dbErr);
+    }
     $stmt->close();
     $conn->close();
-    error_log('OTP save execute failed: ' . $dbErr);
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'OTP save failed',
-    ]);
-}
-$stmt->close();
-$conn->close();
 
-$config = api_mailer_config();
-if (
-    trim((string)($config['host'] ?? '')) === '' ||
-    trim((string)($config['username'] ?? '')) === '' ||
-    trim((string)($config['password'] ?? '')) === '' ||
-    trim((string)($config['from_email'] ?? '')) === ''
-) {
-    api_send_json(500, [
-        'ok' => false,
-        'error' => 'Mail server is not configured',
-    ]);
-}
+    $config = api_mailer_config();
+    if (
+        trim((string)($config['host'] ?? '')) === '' ||
+        trim((string)($config['username'] ?? '')) === '' ||
+        trim((string)($config['password'] ?? '')) === '' ||
+        trim((string)($config['from_email'] ?? '')) === ''
+    ) {
+        api_send_otp_error(500, 'Mail server is not configured');
+    }
 
-$mail = new PHPMailer(true);
-
-try {
+    $mail = new PHPMailer(true);
     $secure = strtolower(trim((string)($config['secure'] ?? 'tls')));
     $allowSelfSigned = filter_var((string)(getenv('MAIL_ALLOW_SELF_SIGNED') ?: '0'), FILTER_VALIDATE_BOOLEAN);
 
@@ -180,9 +168,8 @@ try {
         'message' => 'OTP sent',
     ]);
 } catch (Exception $e) {
-    error_log('OTP mail send failed for ' . $email . ': ' . $mail->ErrorInfo . ' | ' . $e->getMessage());
-    api_send_json(502, [
-        'ok' => false,
-        'error' => 'Unable to send OTP email. Please try again.',
-    ]);
+    $mailError = isset($mail) ? (string)$mail->ErrorInfo : '';
+    api_send_otp_error(502, 'Unable to send OTP email. Please try again.', 'Mail exception: ' . $mailError . ' | ' . $e->getMessage());
+} catch (Throwable $e) {
+    api_send_otp_error(500, 'OTP service failed. Please try again.', 'Unexpected fatal: ' . $e->getMessage());
 }
