@@ -2,7 +2,8 @@
 vendor/
 project/node_modules/
 
-# Local env overrides (never commit real credentials)
+# Environment files with real credentials — NEVER commit these
+.env
 project/.env.local
 project/.env.production.local
 
