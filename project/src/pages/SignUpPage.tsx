@@ -378,8 +378,8 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   if (ok) {
                     onNavigate('/signin');
                   }
-                } catch {
-                  setFieldError('form', 'Network error. Please try again.');
+                } catch (err) {
+                  setFieldError('form', err instanceof Error ? err.message : 'Network error. Please try again.');
                 } finally {
                   setSubmitting(false);
                 }

@@ -89,6 +89,8 @@ try {
     $mail->Password = $config['password'];
     $mail->SMTPSecure = $config['secure'];
     $mail->Port = (int)$config['port'];
+    $mail->Timeout = 10;
+    $mail->SMTPKeepAlive = false;
 
     $mail->setFrom($config['from_email'], $config['from_name']);
     $mail->addAddress($email);
