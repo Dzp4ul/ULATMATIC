@@ -8,30 +8,32 @@ declare(strict_types=1);
  * For production on DigitalOcean, set these in the App Platform Environment Variables UI.
  */
 
-// Load .env file if it exists (local dev or server-side .env)
-$envFile = __DIR__ . '/../../.env';
-if (file_exists($envFile)) {
+// Load .env file if it exists (local dev only — on production set env vars in DO UI)
+$envFile = realpath(__DIR__ . '/../../.env');
+if ($envFile !== false && is_file($envFile) && strpos($envFile, realpath(__DIR__ . '/../../')) === 0) {
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) continue;
-        if (!str_contains($line, '=')) continue;
-        [$key, $value] = explode('=', $line, 2);
-        $key = trim($key);
-        $value = trim($value);
-        if ($key !== '' && getenv($key) === false) {
-            putenv("$key=$value");
-            $_ENV[$key] = $value;
+    if (is_array($lines)) {
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) continue;
+            if (!str_contains($line, '=')) continue;
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key !== '' && preg_match('/^[A-Z][A-Z0-9_]+$/', $key) && getenv($key) === false) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+            }
         }
     }
 }
 
 // ── Database ──────────────────────────────────────────────────────────────────
-define('DB_HOST',     getenv('DB_HOST')     ?: '127.0.0.1');
-define('DB_USER',     getenv('DB_USER')     ?: 'root');
-define('DB_PASSWORD', getenv('DB_PASSWORD') ?: '');
+define('DB_HOST',     getenv('DB_HOST')     ?: 'db-mysql-sgp1-00254-do-user-35469295-0.i.db.ondigitalocean.com');
+define('DB_USER',     getenv('DB_USER')     ?: 'doadmin');
+define('DB_PASSWORD', getenv('DB_PASSWORD') ?: 'AVNS_gbOkubobunBlanSMQao');
 define('DB_NAME',     getenv('DB_NAME')     ?: 'ulatmatic');
-define('DB_PORT',     (int)(getenv('DB_PORT') ?: 3306));
+define('DB_PORT',     (int)(getenv('DB_PORT') ?: 25060));
 
 // ── SMTP / Mailer ─────────────────────────────────────────────────────────────
 define('MAIL_HOST',       getenv('MAIL_HOST')       ?: 'smtp.gmail.com');
