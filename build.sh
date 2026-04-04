@@ -24,11 +24,22 @@ else
     php composer.phar install --no-dev --optimize-autoloader
 fi
 
-if [ ! -f "$REPO_DIR/vendor/phpmailer/phpmailer/src/PHPMailer.php" ]; then
-    echo "ERROR: PHPMailer was not installed. Build cannot continue."
+echo "==> Verifying PHPMailer dependency..."
+if command -v composer &> /dev/null; then
+    if ! composer --working-dir "$REPO_DIR" show phpmailer/phpmailer > /dev/null 2>&1; then
+        echo "ERROR: PHPMailer package is not installed according to composer."
+        exit 1
+    fi
+elif [ -f "$REPO_DIR/composer.phar" ]; then
+    if ! php "$REPO_DIR/composer.phar" --working-dir "$REPO_DIR" show phpmailer/phpmailer > /dev/null 2>&1; then
+        echo "ERROR: PHPMailer package is not installed according to composer.phar."
+        exit 1
+    fi
+else
+    echo "ERROR: Composer verification step could not run."
     exit 1
 fi
-echo "==> PHPMailer dependency is present."
+echo "==> PHPMailer dependency verified."
 
 echo "==> Installing frontend dependencies..."
 cd "$REPO_DIR/project"

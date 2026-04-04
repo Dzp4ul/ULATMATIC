@@ -21,35 +21,78 @@ function api_send_otp_error(int $statusCode, string $publicMessage, string $logM
     ]);
 }
 
-function api_bootstrap_phpmailer(string $autoloadPath): bool
+function api_vendor_dir_candidates(): array
 {
-    if (is_file($autoloadPath)) {
-        require_once $autoloadPath;
+    $candidates = [];
+
+    $fromEnv = trim((string)(getenv('COMPOSER_VENDOR_DIR') ?: ''));
+    if ($fromEnv !== '') {
+        $candidates[] = rtrim($fromEnv, "/\\");
     }
 
-    if (class_exists(PHPMailer::class)) {
-        return true;
-    }
+    $candidates[] = __DIR__ . '/../../vendor';
 
-    // Fallback for deployments where Composer autoload exists but package map is incomplete.
-    $mailerSrc = __DIR__ . '/../../vendor/phpmailer/phpmailer/src';
-    $requiredFiles = [
-        $mailerSrc . '/Exception.php',
-        $mailerSrc . '/PHPMailer.php',
-        $mailerSrc . '/SMTP.php',
-    ];
+    // Fallback: if app root is mounted one level differently in runtime.
+    $candidates[] = dirname(__DIR__, 3) . '/vendor';
 
-    foreach ($requiredFiles as $file) {
-        if (!is_file($file)) {
-            return false;
+    $existing = [];
+    foreach ($candidates as $dir) {
+        if ($dir === '') {
+            continue;
+        }
+        $real = realpath($dir);
+        if ($real !== false && is_dir($real) && !in_array($real, $existing, true)) {
+            $existing[] = $real;
         }
     }
 
-    foreach ($requiredFiles as $file) {
-        require_once $file;
+    return $existing;
+}
+
+function api_bootstrap_phpmailer(): bool
+{
+    $vendorDirs = api_vendor_dir_candidates();
+
+    foreach ($vendorDirs as $vendorDir) {
+        $autoloadPath = $vendorDir . '/autoload.php';
+        if (is_file($autoloadPath)) {
+            require_once $autoloadPath;
+        }
+        if (class_exists(PHPMailer::class)) {
+            return true;
+        }
     }
 
-    return class_exists(PHPMailer::class);
+    // Fallback for deployments where Composer autoload exists but package map is incomplete.
+    foreach ($vendorDirs as $vendorDir) {
+        $mailerSrc = $vendorDir . '/phpmailer/phpmailer/src';
+        $requiredFiles = [
+            $mailerSrc . '/Exception.php',
+            $mailerSrc . '/PHPMailer.php',
+            $mailerSrc . '/SMTP.php',
+        ];
+
+        $allPresent = true;
+        foreach ($requiredFiles as $file) {
+            if (!is_file($file)) {
+                $allPresent = false;
+                break;
+            }
+        }
+        if (!$allPresent) {
+            continue;
+        }
+
+        foreach ($requiredFiles as $file) {
+            require_once $file;
+        }
+
+        if (class_exists(PHPMailer::class)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 api_apply_cors();
@@ -67,12 +110,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $autoload = __DIR__ . '/../../vendor/autoload.php';
-    if (!api_bootstrap_phpmailer($autoload)) {
+    if (!api_bootstrap_phpmailer()) {
         api_send_otp_error(
             500,
             'OTP service unavailable. Mailer dependency missing.',
-            'PHPMailer not loadable. autoload=' . (is_file($autoload) ? 'present' : 'missing')
+            'PHPMailer not loadable from vendor dirs: ' . implode(', ', api_vendor_dir_candidates())
         );
     }
 
