@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+echo "==> Repo root: $REPO_DIR"
+
 echo "==> Installing Node.js via nvm..."
 export NVM_DIR="$HOME/.nvm"
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
@@ -13,7 +16,7 @@ echo "==> Node version: $(node -v)"
 echo "==> NPM version: $(npm -v)"
 
 echo "==> Installing PHP dependencies..."
-cd /workspace
+cd "$REPO_DIR"
 if command -v composer &> /dev/null; then
     composer install --no-dev --optimize-autoloader
 else
@@ -22,7 +25,7 @@ else
 fi
 
 echo "==> Installing frontend dependencies..."
-cd /workspace/project
+cd "$REPO_DIR/project"
 npm install
 
 echo "==> Building frontend..."
