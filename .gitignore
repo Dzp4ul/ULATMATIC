@@ -1,5 +1,4 @@
 # Dependencies
-vendor/
 project/node_modules/
 
 # Environment files with real credentials — NEVER commit these
