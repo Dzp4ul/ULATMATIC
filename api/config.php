@@ -45,4 +45,4 @@ define('MAIL_FROM_EMAIL', getenv('MAIL_FROM_EMAIL') ?: 'ulatmatic@gmail.com');
 define('MAIL_FROM_NAME',  getenv('MAIL_FROM_NAME')  ?: 'ULATMATIC');
 
 // ── Allowed CORS origins ──────────────────────────────────────────────────────
-define('ALLOWED_ORIGINS', getenv('ALLOWED_ORIGINS') ?: 'http://localhost:5173,http://localhost,http://127.0.0.1');
+define('ALLOWED_ORIGINS', getenv('ALLOWED_ORIGINS') ?: 'http://localhost:5173,http://localhost,http://127.0.0.1,https://ulatmatic-s2zqx.ondigitalocean.app');
