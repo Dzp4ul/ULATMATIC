@@ -11,6 +11,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const [fname, setFname] = useState('');
   const [midname, setMidname] = useState('');
   const [lname, setLname] = useState('');
+  const [suffix, setSuffix] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('');
@@ -157,7 +158,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const expiresInSeconds = otpExpiresAt ? Math.max(0, Math.floor((otpExpiresAt - nowMs) / 1000)) : 0;
   const resendInSeconds = resendAvailableAt ? Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000)) : 0;
   const otpExpired = otpSent && expiresInSeconds <= 0;
-  const phonePattern = /^9\d{8}$/;
+  const phonePattern = /^9\d{9}$/;
   const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/;
   const isPhoneValid = (value: string) => phonePattern.test(value.trim());
   const isPasswordValid = (value: string) => passwordPattern.test(value);
@@ -202,7 +203,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const submitResidentRegistration = async () => {
     const normalizedPhone = phone.trim();
     if (!isPhoneValid(normalizedPhone)) {
-      setFieldError('phone', 'Phone number must be +63 followed by 9 digits.');
+      setFieldError('phone', 'Phone number must start with 9 and be 10 digits.');
       return false;
     }
 
@@ -235,6 +236,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     form.append('fname', fname);
     form.append('midname', midname);
     form.append('lname', lname);
+    form.append('suffix', suffix);
     form.append('email', email);
     form.append('phone', `+63${normalizedPhone}`);
     form.append('gender', gender);
@@ -260,9 +262,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="min-h-screen grid lg:grid-cols-2">
-        <div className="hidden lg:flex flex-col items-center text-center justify-center px-14 bg-brand border-r border-black/5">
+    <div className="bg-gray-50">
+      <div className="lg:grid lg:grid-cols-2 lg:h-screen">
+        <div className="hidden lg:flex flex-col items-center text-center justify-center px-14 bg-brand border-r border-black/5 sticky top-0 h-screen">
           <div className="flex flex-col items-center mb-6">
             <img src={logo} alt="ULATMATIC logo" className="w-28 h-28 object-contain" />
             <h1 className="mt-6 text-3xl font-bold text-white">Barangay Bigte, Norzagaray, Bulacan</h1>
@@ -280,8 +282,8 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
           </button>
         </div>
 
-        <div className="flex items-center justify-center px-4 py-10">
-          <div className="w-full max-w-xl">
+        <div className="flex items-start justify-center px-4 py-10 lg:h-screen lg:overflow-y-auto">
+          <div className="w-full max-w-2xl">
             <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-sm lg:hidden">
               <div className="flex min-w-0 items-center gap-3">
                 <img src={logo} alt="ULATMATIC logo" className="h-9 w-9 object-contain" />
@@ -316,7 +318,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 setSuccess(null);
 
                 if (!isPhoneValid(phone)) {
-                  setFieldError('phone', 'Phone number must be +63 followed by 9 digits.');
+                  setFieldError('phone', 'Phone number must start with 9 and be 10 digits.');
                   return;
                 }
 
@@ -383,7 +385,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 }
               }}
             >
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">First name</label>
                   <input
@@ -416,6 +418,22 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     placeholder="Dela Cruz"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Suffix (optional)</label>
+                  <select
+                    value={suffix}
+                    onChange={(e) => setSuffix(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="">None</option>
+                    <option value="Jr.">Jr.</option>
+                    <option value="Sr.">Sr.</option>
+                    <option value="II">II</option>
+                    <option value="III">III</option>
+                    <option value="IV">IV</option>
+                    <option value="V">V</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -444,17 +462,17 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     required
                     value={phone}
                     onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                       setPhone(digits);
                       clearErrorForField('phone');
                     }}
                     inputMode="numeric"
                     className="w-full rounded-r-lg px-4 py-2.5 focus:outline-none"
                     placeholder="9XXXXXXXXX"
-                    maxLength={9}
+                    maxLength={10}
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Format: +63 followed by 9 digits.</p>
+                <p className="mt-1 text-xs text-gray-500">Format: +63 9XXXXXXXXX (10 digits starting with 9).</p>
                 {error && errorField === 'phone' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
@@ -472,7 +490,6 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   <option value="" disabled>Select gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
                 </select>
                 {error && errorField === 'gender' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>

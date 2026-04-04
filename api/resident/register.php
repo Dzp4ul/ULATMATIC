@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $fname = trim((string)($_POST['fname'] ?? ''));
 $midname = trim((string)($_POST['midname'] ?? ''));
 $lname = trim((string)($_POST['lname'] ?? ''));
+$suffix = trim((string)($_POST['suffix'] ?? ''));
 $email = trim((string)($_POST['email'] ?? ''));
 $phone = trim((string)($_POST['phone'] ?? ''));
 $gender = trim((string)($_POST['gender'] ?? ''));
@@ -35,10 +36,10 @@ if ($fname === '' || $email === '' || $phone === '' || $gender === '' || $sitio 
     ]);
 }
 
-if (!preg_match('/^\+63\d{9}$/', $phone)) {
+if (!preg_match('/^\+639\d{9}$/', $phone)) {
     api_send_json(400, [
         'ok' => false,
-        'error' => 'Phone number must start with +63 and contain 9 digits.',
+        'error' => 'Phone number must start with +639 and contain 10 digits.',
     ]);
 }
 
@@ -74,6 +75,29 @@ if (($front['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($back['error']
     ]);
 }
 
+$maxFileSize = 5 * 1024 * 1024; // 5 MB
+if (($front['size'] ?? 0) > $maxFileSize || ($back['size'] ?? 0) > $maxFileSize || ($selfie['size'] ?? 0) > $maxFileSize) {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Each file must be under 5MB',
+    ]);
+}
+
+$allowedIdMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+foreach ([&$front, &$back, &$selfie] as &$uploadedFile) {
+    $tmp = (string)($uploadedFile['tmp_name'] ?? '');
+    if ($tmp !== '' && function_exists('mime_content_type')) {
+        $detected = @mime_content_type($tmp);
+        if (is_string($detected) && !in_array($detected, $allowedIdMimes, true)) {
+            api_send_json(400, [
+                'ok' => false,
+                'error' => 'ID and selfie uploads must be images (jpg, png, webp, gif)',
+            ]);
+        }
+    }
+}
+unset($uploadedFile);
+
 $uploadsDir = realpath(__DIR__ . '/../..');
 if ($uploadsDir === false) {
     api_send_json(500, [
@@ -85,7 +109,7 @@ if ($uploadsDir === false) {
 $uploadsRelDir = 'uploads/resident_ids';
 $uploadsAbsDir = $uploadsDir . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'resident_ids';
 if (!is_dir($uploadsAbsDir)) {
-    @mkdir($uploadsAbsDir, 0777, true);
+    @mkdir($uploadsAbsDir, 0755, true);
 }
 
 if (!is_dir($uploadsAbsDir)) {
@@ -164,7 +188,7 @@ if ($existing) {
     $declinedAt = null;
 
     $stmt = $conn->prepare(
-        'UPDATE resident_user SET fname = ?, midname = ?, lname = ?, phone = ?, gender = ?, sitio = ?, user_pass = ?, front_id = ?, back_id = ?, selfie_photo = ?, status = ?, approved_at = ?, declined_at = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?'
+        'UPDATE resident_user SET fname = ?, midname = ?, lname = ?, suffix = ?, phone = ?, gender = ?, sitio = ?, user_pass = ?, front_id = ?, back_id = ?, selfie_photo = ?, status = ?, approved_at = ?, declined_at = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?'
     );
 
     if (!$stmt) {
@@ -175,7 +199,7 @@ if ($existing) {
         ]);
     }
 
-    $stmt->bind_param('ssssssssssssii', $fname, $midname, $lname, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status, $approvedAt, $declinedAt, $id);
+    $stmt->bind_param('sssssssssssssii', $fname, $midname, $lname, $suffix, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status, $approvedAt, $declinedAt, $id);
     $stmt->execute();
     $stmt->close();
     $conn->close();
@@ -190,7 +214,7 @@ if ($existing) {
 
 $status = 'PENDING';
 $stmt = $conn->prepare(
-    'INSERT INTO resident_user (fname, midname, lname, email, phone, gender, sitio, user_pass, front_id, back_id, selfie_photo, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO resident_user (fname, midname, lname, suffix, email, phone, gender, sitio, user_pass, front_id, back_id, selfie_photo, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 if (!$stmt) {
     $conn->close();
@@ -200,7 +224,7 @@ if (!$stmt) {
     ]);
 }
 
-$stmt->bind_param('ssssssssssss', $fname, $midname, $lname, $email, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status);
+$stmt->bind_param('sssssssssssss', $fname, $midname, $lname, $suffix, $email, $phone, $gender, $sitio, $hashed, $frontPath, $backPath, $selfiePath, $status);
 $stmt->execute();
 $id = $stmt->insert_id;
 $stmt->close();

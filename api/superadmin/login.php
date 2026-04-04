@@ -74,7 +74,7 @@ if (!$user) {
 
 $storedPass = (string)($user['superadmin_pass'] ?? '');
 
-if (!password_verify($password, $storedPass) && $storedPass !== $password) {
+if (!password_verify($password, $storedPass)) {
     api_send_json(401, [
         'ok' => false,
         'error' => 'Invalid credentials',

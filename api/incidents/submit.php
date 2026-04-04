@@ -87,7 +87,7 @@ if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
         $uploadsRelDir = 'uploads/incidents';
         $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'incidents';
         if (!is_dir($uploadsAbsDir)) {
-            @mkdir($uploadsAbsDir, 0777, true);
+            @mkdir($uploadsAbsDir, 0755, true);
         }
 
         if (!is_dir($uploadsAbsDir)) {

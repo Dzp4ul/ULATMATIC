@@ -100,7 +100,7 @@ if (isset($_FILES['profile_photo']) && is_array($_FILES['profile_photo'])) {
         $uploadsRelDir = 'uploads/profiles/superadmin';
         $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . 'superadmin';
         if (!is_dir($uploadsAbsDir)) {
-            @mkdir($uploadsAbsDir, 0777, true);
+            @mkdir($uploadsAbsDir, 0755, true);
         }
 
         if (!is_dir($uploadsAbsDir)) {

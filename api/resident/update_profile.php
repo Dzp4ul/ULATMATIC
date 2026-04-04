@@ -139,7 +139,7 @@ if (isset($_FILES['profile_photo']) && is_array($_FILES['profile_photo'])) {
         $uploadsRelDir = 'uploads/profiles/resident';
         $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . 'resident';
         if (!is_dir($uploadsAbsDir)) {
-            @mkdir($uploadsAbsDir, 0777, true);
+            @mkdir($uploadsAbsDir, 0755, true);
         }
 
         if (!is_dir($uploadsAbsDir)) {
@@ -179,7 +179,7 @@ if ($uploadsRoot === false) {
 $uploadsRelDir = 'uploads/resident_ids';
 $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'resident_ids';
 if (!is_dir($uploadsAbsDir)) {
-    @mkdir($uploadsAbsDir, 0777, true);
+    @mkdir($uploadsAbsDir, 0755, true);
 }
 
 if (!is_dir($uploadsAbsDir)) {

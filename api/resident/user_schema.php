@@ -110,4 +110,15 @@ function api_ensure_resident_user_schema(mysqli $conn): void
     if ($needsSelfiePhoto) {
         $conn->query("ALTER TABLE resident_user ADD COLUMN selfie_photo VARCHAR(255) NULL AFTER back_id");
     }
+
+    $needsSuffix = false;
+    $res = $conn->query("SHOW COLUMNS FROM resident_user LIKE 'suffix'");
+    if ($res) {
+        $needsSuffix = $res->num_rows === 0;
+        $res->free();
+    }
+
+    if ($needsSuffix) {
+        $conn->query("ALTER TABLE resident_user ADD COLUMN suffix VARCHAR(20) NULL AFTER lname");
+    }
 }

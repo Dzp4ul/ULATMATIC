@@ -1,10 +1,16 @@
 <?php
 /**
  * Seed a default superadmin account.
- * Run once: php api/superadmin/seed.php
+ * Run once via CLI only: php api/superadmin/seed.php
  */
 
 declare(strict_types=1);
+
+// Block web access — CLI only
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/user_schema.php';

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../config.php';
+
 function api_send_json(int $statusCode, array $payload): void
 {
     http_response_code($statusCode);
@@ -13,11 +15,14 @@ function api_send_json(int $statusCode, array $payload): void
 function api_apply_cors(): void
 {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    $originParts = $origin !== '' ? parse_url($origin) : false;
-    $host = is_array($originParts) ? (string)($originParts['host'] ?? '') : '';
-    $scheme = is_array($originParts) ? (string)($originParts['scheme'] ?? '') : '';
+    if ($origin === '') {
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type');
+        return;
+    }
 
-    if ($scheme === 'http' && ($host === 'localhost' || $host === '127.0.0.1')) {
+    $allowed = array_map('trim', explode(',', ALLOWED_ORIGINS));
+    if (in_array($origin, $allowed, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);
     }
 
@@ -27,13 +32,7 @@ function api_apply_cors(): void
 
 function api_db(): mysqli
 {
-    $db_host = '127.0.0.1';
-    $db_user = 'root';
-    $db_password = '';
-    $db_name = 'ulatmatic';
-    $db_port = 3306;
-
-    $conn = new mysqli($db_host, $db_user, $db_password, $db_name, $db_port);
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
 
     if ($conn->connect_error) {
         api_send_json(500, [

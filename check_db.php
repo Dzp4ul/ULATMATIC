@@ -1,4 +1,10 @@
 <?php
+// CLI-only debug script. Block web access.
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/api/shared/db.php';
 
 $conn = api_db();
