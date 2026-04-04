@@ -1,0 +1,18 @@
+# Dependencies
+vendor/
+project/node_modules/
+
+# Local env overrides (never commit real credentials)
+project/.env.local
+project/.env.production.local
+
+# Keep public/ tracked (Vite build output goes here)
+!public/
+!public/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+tmpclaude-*

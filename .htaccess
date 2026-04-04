@@ -26,3 +26,13 @@ Options -Indexes
     php_flag display_errors Off
     php_flag log_errors On
 </IfModule>
+
+# ── React SPA fallback (for local XAMPP use) ──────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !^/api/
+    RewriteCond %{REQUEST_URI} !^/uploads/
+    RewriteRule ^ /index.html [L]
+</IfModule>

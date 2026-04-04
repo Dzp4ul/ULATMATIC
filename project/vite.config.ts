@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      outDir: '../public',
+      emptyOutDir: true,
+    },
     optimizeDeps: {
       exclude: ['lucide-react'],
     },
