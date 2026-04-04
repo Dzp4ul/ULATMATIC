@@ -129,7 +129,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
 
       const fetchComplaint = async (): Promise<{ ok: boolean; data?: { complaint?: TrackedComplaint; hearings?: TrackedHearing[] } }> => {
         const res = await fetch(
-          `http://localhost/ULATMATIC/api/complaints/track.php?tracking_number=${encodeURIComponent(trimmed)}`
+          `/api/complaints/track.php?tracking_number=${encodeURIComponent(trimmed)}`
         );
         const data = (await res.json()) as {
           ok?: boolean;
@@ -140,7 +140,7 @@ export default function TrackStatusPage({ onNavigate }: { onNavigate: (to: strin
       };
 
       const fetchIncident = async (): Promise<{ ok: boolean; data?: { incident?: TrackedIncident } }> => {
-        const res = await fetch('http://localhost/ULATMATIC/api/incidents/track.php', {
+        const res = await fetch('/api/incidents/track.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tracking_number: trimmed }),

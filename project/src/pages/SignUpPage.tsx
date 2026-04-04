@@ -246,7 +246,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     form.append('back_id', idBackFile);
     form.append('selfie', selfieFile);
 
-    const res = await fetch('http://localhost/ULATMATIC/api/resident/register.php', {
+    const res = await fetch('/api/resident/register.php', {
       method: 'POST',
       body: form,
     });
@@ -350,7 +350,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 try {
                   if (!otpVerified) {
                     if (!otpSent || otpExpired) {
-                      const res = await fetch('http://localhost/ULATMATIC/api/shared/send_otp.php', {
+                      const res = await fetch('/api/shared/send_otp.php', {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
@@ -741,7 +741,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       setOtpNotice(null);
                       setSubmitting(true);
                       try {
-                        const res = await fetch('http://localhost/ULATMATIC/api/shared/send_otp.php', {
+                        const res = await fetch('/api/shared/send_otp.php', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
@@ -799,7 +799,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     setOtpNotice(null);
                     setSubmitting(true);
                     try {
-                      const res = await fetch('http://localhost/ULATMATIC/api/shared/verify_otp.php', {
+                      const res = await fetch('/api/shared/verify_otp.php', {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',

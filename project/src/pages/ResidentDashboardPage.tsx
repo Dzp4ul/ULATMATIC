@@ -561,7 +561,7 @@ export default function ResidentDashboardPage({
           setComplaintSitio(parsed.sitio);
         }
 
-        const res = await fetch('http://localhost/ULATMATIC/api/resident/profile.php', {
+        const res = await fetch('/api/resident/profile.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -623,9 +623,9 @@ export default function ResidentDashboardPage({
     const preload = async () => {
       try {
         const [complaintsRes, hearingsRes, incidentsRes] = await Promise.all([
-          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
-          fetch(`http://localhost/ULATMATIC/api/hearings/list.php?resident_id=${residentId}`),
-          fetch('http://localhost/ULATMATIC/api/incidents/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
+          fetch('/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
+          fetch(`/api/hearings/list.php?resident_id=${residentId}`),
+          fetch('/api/incidents/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
         ]);
         if (!active) return;
         const [complaintsData, hearingsData, incidentsData] = await Promise.all([
@@ -732,7 +732,7 @@ export default function ResidentDashboardPage({
     setComplaintsError(null);
     setComplaintsLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/complaints/list.php', {
+      const res = await fetch('/api/complaints/list.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -776,7 +776,7 @@ export default function ResidentDashboardPage({
     setHearingsError(null);
     setHearingsLoading(true);
     try {
-      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php?resident_id=${residentId}`);
+      const res = await fetch(`/api/hearings/list.php?resident_id=${residentId}`);
       const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
       if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
         setHearingsError(data.error ?? 'Failed to load hearing schedules');
@@ -806,7 +806,7 @@ export default function ResidentDashboardPage({
     setIncidentsError(null);
     setIncidentsLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+      const res = await fetch('/api/incidents/list.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resident_id: residentId, status: 'ALL' }),
@@ -889,17 +889,17 @@ export default function ResidentDashboardPage({
                 : 'Profile Settings';
 
   const selectedEvidenceUrl = selectedComplaint?.evidence_path
-    ? `http://localhost/ULATMATIC/${selectedComplaint.evidence_path}`
+    ? `/${selectedComplaint.evidence_path}`
     : null;
   const selectedEvidenceIsVideo = Boolean(
     selectedComplaint?.evidence_mime
       ? selectedComplaint.evidence_mime.startsWith('video/')
       : selectedComplaint?.evidence_path?.match(/\.(mp4|webm|mov)$/i)
   );
-  const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
+  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
-  const profileFrontIdUrl = profileFrontId ? `http://localhost/ULATMATIC/${profileFrontId}` : null;
-  const profileBackIdUrl = profileBackId ? `http://localhost/ULATMATIC/${profileBackId}` : null;
+  const profileFrontIdUrl = profileFrontId ? `/${profileFrontId}` : null;
+  const profileBackIdUrl = profileBackId ? `/${profileBackId}` : null;
   const profileFrontIdDisplay = profileFrontIdPreview ?? profileFrontIdUrl;
   const profileBackIdDisplay = profileBackIdPreview ?? profileBackIdUrl;
 
@@ -1126,7 +1126,7 @@ export default function ResidentDashboardPage({
                       if (profileBackIdFile) fd.append('back_id', profileBackIdFile);
                       if (profilePassword.trim()) fd.append('user_pass', profilePassword.trim());
 
-                      const res = await fetch('http://localhost/ULATMATIC/api/resident/update_profile.php', {
+                      const res = await fetch('/api/resident/update_profile.php', {
                         method: 'POST',
                         body: fd,
                       });
@@ -1433,7 +1433,7 @@ export default function ResidentDashboardPage({
                       if (witnessStr) fd.append('witness', witnessStr);
                       if (complaintEvidence) fd.append('evidence', complaintEvidence);
 
-                      const res = await fetch('http://localhost/ULATMATIC/api/complaints/submit.php', {
+                      const res = await fetch('/api/complaints/submit.php', {
                         method: 'POST',
                         body: fd,
                       });
@@ -1920,7 +1920,7 @@ export default function ResidentDashboardPage({
                         if (witnessStr) fd.append('witness', witnessStr);
                         if (incidentEvidence) fd.append('evidence', incidentEvidence);
 
-                        const res = await fetch('http://localhost/ULATMATIC/api/incidents/submit.php', {
+                        const res = await fetch('/api/incidents/submit.php', {
                           method: 'POST',
                           body: fd,
                         });
@@ -2488,7 +2488,7 @@ export default function ResidentDashboardPage({
       {/* Incident detail modal */}
       {selectedIncident ? (() => {
         const incEvidenceUrl = selectedIncident.evidence_path
-          ? `http://localhost/ULATMATIC/${selectedIncident.evidence_path}`
+          ? `/${selectedIncident.evidence_path}`
           : null;
         const incIsVideo = Boolean(
           selectedIncident.evidence_mime

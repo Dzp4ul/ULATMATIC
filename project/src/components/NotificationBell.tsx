@@ -16,7 +16,7 @@ interface NotificationBellProps {
   userRole: 'resident' | 'secretary' | 'captain' | 'chief' | 'pio';
 }
 
-const API_BASE = 'http://localhost/ULATMATIC/api/notifications';
+const API_BASE = '/api/notifications';
 
 const TYPE_COLORS: Record<string, string> = {
   complaint: 'bg-blue-100 text-blue-600',

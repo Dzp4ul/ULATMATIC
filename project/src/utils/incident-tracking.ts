@@ -1,6 +1,6 @@
 export const recordIncidentView = async (incidentId: number, userId: number, userRole: string) => {
   try {
-    const response = await fetch('http://localhost/ULATMATIC/api/incidents/record-view.php', {
+    const response = await fetch('/api/incidents/record-view.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

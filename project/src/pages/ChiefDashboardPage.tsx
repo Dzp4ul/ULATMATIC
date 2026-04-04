@@ -157,7 +157,7 @@ export default function ChiefDashboardPage({
   const loadSummary = async () => {
     setDashboardChartLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+      const res = await fetch('/api/incidents/list.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ export default function ChiefDashboardPage({
           setProfileEmail(parsed.chief_email);
         }
 
-        const res = await fetch('http://localhost/ULATMATIC/api/chief/profile.php', {
+        const res = await fetch('/api/chief/profile.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -248,7 +248,7 @@ export default function ChiefDashboardPage({
     let active = true;
     const preload = async () => {
       try {
-        const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+        const res = await fetch('/api/incidents/list.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'ALL', all: true }),
         });
@@ -290,7 +290,7 @@ export default function ChiefDashboardPage({
       setIncidentsError(null);
       setIncidentsLoading(true);
       try {
-        const res = await fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+        const res = await fetch('/api/incidents/list.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -353,7 +353,7 @@ export default function ChiefDashboardPage({
     ],
     [summary]
   );
-  const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
+  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
   const isIncidentActionable = (status: string): boolean => {
     const normalized = status.toUpperCase();
@@ -371,7 +371,7 @@ export default function ChiefDashboardPage({
     setIncidentActionId(id);
     setIncidentsError(null);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/incidents/resolve.php', {
+      const res = await fetch('/api/incidents/resolve.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,7 +402,7 @@ export default function ChiefDashboardPage({
     setIncidentActionId(id);
     setIncidentsError(null);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/incidents/accept.php', {
+      const res = await fetch('/api/incidents/accept.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -437,7 +437,7 @@ export default function ChiefDashboardPage({
     setIncidentActionId(id);
     setIncidentsError(null);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/incidents/transfer.php', {
+      const res = await fetch('/api/incidents/transfer.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -721,7 +721,7 @@ export default function ChiefDashboardPage({
                       fd.append('chief_email', profileEmail.trim());
                       if (profilePhotoFile) fd.append('profile_photo', profilePhotoFile);
 
-                      const res = await fetch('http://localhost/ULATMATIC/api/chief/update_profile.php', {
+                      const res = await fetch('/api/chief/update_profile.php', {
                         method: 'POST',
                         body: fd,
                       });
@@ -883,7 +883,7 @@ export default function ChiefDashboardPage({
                         <tbody className="divide-y divide-gray-200">
                           {paginate(incidents, incidentsPage).map((row) => {
                             const evidenceUrl = row.evidence_path
-                              ? `http://localhost/ULATMATIC/${row.evidence_path}`
+                              ? `/${row.evidence_path}`
                               : null;
                             return (
                               <tr key={row.id} className="hover:bg-gray-50">

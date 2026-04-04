@@ -41,7 +41,7 @@ export function IncidentDetailsModal({
   }
 
   const evidenceUrl = incident.evidence_path
-    ? `http://localhost/ULATMATIC/${incident.evidence_path}`
+    ? `/${incident.evidence_path}`
     : null;
   const hasImageEvidence = Boolean(evidenceUrl && (incident.evidence_mime ?? '').startsWith('image/'));
 

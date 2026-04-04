@@ -49,7 +49,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
     setForgotSuccess(null);
     setForgotSubmitting(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/shared/forgot_password.php', {
+      const res = await fetch('/api/shared/forgot_password.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail }),
@@ -87,7 +87,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
 
     setForgotSubmitting(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/shared/reset_password.php', {
+      const res = await fetch('/api/shared/reset_password.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, new_password: forgotNewPassword }),
@@ -212,7 +212,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return { res, data };
                   };
 
-                  const superadminAttempt = await tryLogin('http://localhost/ULATMATIC/api/superadmin/login.php');
+                  const superadminAttempt = await tryLogin('/api/superadmin/login.php');
                   if (superadminAttempt.res.ok && superadminAttempt.data.ok && superadminAttempt.data.user?.role === 'SUPERADMIN') {
                     localStorage.setItem('ulatmatic_superadmin', JSON.stringify(superadminAttempt.data.user));
                     localStorage.removeItem('ulatmatic_secretary');
@@ -224,7 +224,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return;
                   }
 
-                  const secretaryAttempt = await tryLogin('http://localhost/ULATMATIC/api/secretary/login.php');
+                  const secretaryAttempt = await tryLogin('/api/secretary/login.php');
                   if (secretaryAttempt.res.ok && secretaryAttempt.data.ok && secretaryAttempt.data.user?.role === 'SECRETARY') {
                     localStorage.setItem('ulatmatic_secretary', JSON.stringify(secretaryAttempt.data.user));
                     localStorage.removeItem('ulatmatic_superadmin');
@@ -236,7 +236,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return;
                   }
 
-                  const captainAttempt = await tryLogin('http://localhost/ULATMATIC/api/captain/login.php');
+                  const captainAttempt = await tryLogin('/api/captain/login.php');
                   if (captainAttempt.res.ok && captainAttempt.data.ok && captainAttempt.data.user?.role === 'CAPTAIN') {
                     localStorage.setItem('ulatmatic_captain', JSON.stringify(captainAttempt.data.user));
                     localStorage.removeItem('ulatmatic_superadmin');
@@ -248,7 +248,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return;
                   }
 
-                  const chiefAttempt = await tryLogin('http://localhost/ULATMATIC/api/chief/login.php');
+                  const chiefAttempt = await tryLogin('/api/chief/login.php');
                   if (chiefAttempt.res.ok && chiefAttempt.data.ok && chiefAttempt.data.user?.role === 'CHIEF') {
                     localStorage.setItem('ulatmatic_chief', JSON.stringify(chiefAttempt.data.user));
                     localStorage.removeItem('ulatmatic_superadmin');
@@ -260,7 +260,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return;
                   }
 
-                  const pioAttempt = await tryLogin('http://localhost/ULATMATIC/api/pio/login.php');
+                  const pioAttempt = await tryLogin('/api/pio/login.php');
                   if (pioAttempt.res.ok && pioAttempt.data.ok && pioAttempt.data.user?.role === 'PIO') {
                     localStorage.setItem('ulatmatic_pio', JSON.stringify(pioAttempt.data.user));
                     localStorage.removeItem('ulatmatic_superadmin');
@@ -272,7 +272,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     return;
                   }
 
-                  const residentAttempt = await tryLogin('http://localhost/ULATMATIC/api/resident/login.php');
+                  const residentAttempt = await tryLogin('/api/resident/login.php');
                   if (residentAttempt.res.ok && residentAttempt.data.ok && residentAttempt.data.user?.role === 'RESIDENT') {
                     localStorage.setItem('ulatmatic_resident', JSON.stringify(residentAttempt.data.user));
                     localStorage.removeItem('ulatmatic_superadmin');

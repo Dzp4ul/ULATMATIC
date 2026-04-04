@@ -485,7 +485,7 @@ export default function SecretaryDashboardPage({
     let active = true;
     const checkHearing = async () => {
       try {
-        const res = await fetch('http://localhost/ULATMATIC/api/hearings/list.php');
+        const res = await fetch('/api/hearings/list.php');
         const data = (await res.json()) as { ok?: boolean; hearings?: HearingRow[] };
         if (!active || !res.ok || !data.ok || !Array.isArray(data.hearings)) return;
         
@@ -526,7 +526,7 @@ export default function SecretaryDashboardPage({
           setProfileEmail(parsed.sec_email);
         }
 
-        const res = await fetch('http://localhost/ULATMATIC/api/secretary/profile.php', {
+        const res = await fetch('/api/secretary/profile.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -563,11 +563,11 @@ export default function SecretaryDashboardPage({
     const preload = async () => {
       try {
         const [pendingRes, approvedRes, complaintsRes, hearingsRes, caseRes] = await Promise.all([
-          fetch('http://localhost/ULATMATIC/api/resident/list_pending.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-          fetch('http://localhost/ULATMATIC/api/resident/list_approved.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-          fetch('http://localhost/ULATMATIC/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true, assigned_role: 'secretary' }) }),
-          fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
-          fetch('http://localhost/ULATMATIC/api/hearings/list.php'),
+          fetch('/api/resident/list_pending.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+          fetch('/api/resident/list_approved.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+          fetch('/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true, assigned_role: 'secretary' }) }),
+          fetch('/api/hearings/list.php'),
+          fetch('/api/hearings/list.php'),
         ]);
         if (!active) return;
         const [pendingData, approvedData, complaintsData, hearingsData, caseData] = await Promise.all([
@@ -602,7 +602,7 @@ export default function SecretaryDashboardPage({
     const fetchStats = async () => {
       setDashboardLoading(true);
       try {
-        const res = await fetch('http://localhost/ULATMATIC/api/shared/dashboard_stats.php');
+        const res = await fetch('/api/shared/dashboard_stats.php');
         const data = await res.json();
         if (active && res.ok && data.ok) {
           setDashboardStats(data);
@@ -645,8 +645,8 @@ export default function SecretaryDashboardPage({
       try {
         const endpoint =
           residentsTab === 'pending'
-            ? 'http://localhost/ULATMATIC/api/resident/list_pending.php'
-            : 'http://localhost/ULATMATIC/api/resident/list_approved.php';
+            ? '/api/resident/list_pending.php'
+            : '/api/resident/list_approved.php';
 
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -718,7 +718,7 @@ export default function SecretaryDashboardPage({
       setComplaintsError(null);
       setComplaintsLoading(true);
       try {
-        const res = await fetch('http://localhost/ULATMATIC/api/complaints/list.php', {
+        const res = await fetch('/api/complaints/list.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -744,7 +744,7 @@ export default function SecretaryDashboardPage({
         
         if (hasInProgressComplaints) {
           try {
-            const hearingsRes = await fetch('http://localhost/ULATMATIC/api/hearings/list.php');
+            const hearingsRes = await fetch('/api/hearings/list.php');
             const hearingsData = (await hearingsRes.json()) as { ok?: boolean; hearings?: HearingRow[] };
             
             if (hearingsRes.ok && hearingsData.ok && Array.isArray(hearingsData.hearings)) {
@@ -789,7 +789,7 @@ export default function SecretaryDashboardPage({
     setHearingsLoading(true);
     try {
       const statusParam = hearingStatus !== 'ALL' ? `?status=${hearingStatus}` : '';
-      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${statusParam}`);
+      const res = await fetch(`/api/hearings/list.php${statusParam}`);
       const data = (await res.json()) as { ok?: boolean; error?: string; hearings?: HearingRow[] };
       if (!res.ok || !data.ok || !Array.isArray(data.hearings)) {
         setHearingsError(data.error ?? 'Failed to load hearing schedules');
@@ -814,7 +814,7 @@ export default function SecretaryDashboardPage({
     setResolutionError(null);
     setResolutionLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/hearings/resolve.php', {
+      const res = await fetch('/api/hearings/resolve.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -846,7 +846,7 @@ export default function SecretaryDashboardPage({
     if (activeView !== 'case_report') return;
     setKpLoading(true);
     try {
-      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/kp_report.php?year=${kpReportYear}`);
+      const res = await fetch(`/api/hearings/kp_report.php?year=${kpReportYear}`);
       const data = (await res.json()) as { ok?: boolean; months?: Record<number, KpMonthData>; totals?: KpMonthData };
       if (res.ok && data.ok && data.months && data.totals) {
         setKpMonths(data.months);
@@ -865,7 +865,7 @@ export default function SecretaryDashboardPage({
     setCaseResolutionLoading(true);
     try {
       const params = caseResolutionFilter !== 'all' ? `?resolution=${caseResolutionFilter}` : '';
-      const res = await fetch(`http://localhost/ULATMATIC/api/hearings/list.php${params}`);
+      const res = await fetch(`/api/hearings/list.php${params}`);
       const data = (await res.json()) as { ok?: boolean; hearings?: HearingRow[] };
       if (res.ok && data.ok && Array.isArray(data.hearings)) {
         setCaseResolutionHearings(data.hearings);
@@ -888,7 +888,7 @@ export default function SecretaryDashboardPage({
     setComplaintActionError(null);
     setComplaintActionLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/complaints/update_status.php', {
+      const res = await fetch('/api/complaints/update_status.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -937,7 +937,7 @@ export default function SecretaryDashboardPage({
 
     setScheduleLoading(true);
     try {
-      const res = await fetch('http://localhost/ULATMATIC/api/hearings/schedule.php', {
+      const res = await fetch('/api/hearings/schedule.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1015,14 +1015,14 @@ export default function SecretaryDashboardPage({
   );
 
   const selectedEvidenceUrl = selectedComplaint?.evidence_path
-    ? `http://localhost/ULATMATIC/${selectedComplaint.evidence_path}`
+    ? `/${selectedComplaint.evidence_path}`
     : null;
   const selectedEvidenceIsVideo = Boolean(
     selectedComplaint?.evidence_mime
       ? selectedComplaint.evidence_mime.startsWith('video/')
       : selectedComplaint?.evidence_path?.match(/\.(mp4|webm|mov)$/i)
   );
-  const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
+  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
 
   return (
@@ -1450,7 +1450,7 @@ export default function SecretaryDashboardPage({
                       fd.append('sec_email', profileEmail.trim());
                       if (profilePhotoFile) fd.append('profile_photo', profilePhotoFile);
 
-                      const res = await fetch('http://localhost/ULATMATIC/api/secretary/update_profile.php', {
+                      const res = await fetch('/api/secretary/update_profile.php', {
                         method: 'POST',
                         body: fd,
                       });
@@ -1658,8 +1658,8 @@ export default function SecretaryDashboardPage({
                           <tbody className="divide-y divide-gray-200">
                             {pagedResidents.map((r) => {
                               const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
-                              const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
-                              const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
+                              const frontUrl = `/${r.front_id}`;
+                              const backUrl = `/${r.back_id}`;
                               return (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                   <td className="px-5 py-3 font-semibold text-gray-900">{fullName}</td>
@@ -1694,7 +1694,7 @@ export default function SecretaryDashboardPage({
                                           setResidentsError(null);
                                           setResidentsLoading(true);
                                           try {
-                                            const res = await fetch('http://localhost/ULATMATIC/api/resident/approve.php', {
+                                            const res = await fetch('/api/resident/approve.php', {
                                               method: 'POST',
                                               headers: {
                                                 'Content-Type': 'application/json',
@@ -1725,7 +1725,7 @@ export default function SecretaryDashboardPage({
                                           setResidentsError(null);
                                           setResidentsLoading(true);
                                           try {
-                                            const res = await fetch('http://localhost/ULATMATIC/api/resident/decline.php', {
+                                            const res = await fetch('/api/resident/decline.php', {
                                               method: 'POST',
                                               headers: {
                                                 'Content-Type': 'application/json',
@@ -1775,8 +1775,8 @@ export default function SecretaryDashboardPage({
                         <tbody className="divide-y divide-gray-200">
                           {pagedApprovedResidents.map((r) => {
                             const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
-                            const frontUrl = `http://localhost/ULATMATIC/${r.front_id}`;
-                            const backUrl = `http://localhost/ULATMATIC/${r.back_id}`;
+                            const frontUrl = `/${r.front_id}`;
+                            const backUrl = `/${r.back_id}`;
                             return (
                               <tr key={r.id} className="hover:bg-gray-50">
                                 <td className="px-5 py-3 font-semibold text-gray-900">{fullName}</td>

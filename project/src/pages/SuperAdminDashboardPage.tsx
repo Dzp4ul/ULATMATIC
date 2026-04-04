@@ -19,7 +19,7 @@ import { NavSearch, type NavItem } from '../components/NavSearch';
 import { Pagination, paginate } from '../components/Pagination';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
-const API = 'http://localhost/ULATMATIC/api';
+const API = '/api';
 
 /* ─── helpers ─── */
 function SidebarItem({
@@ -379,7 +379,7 @@ export default function SuperAdminDashboardPage({
   };
 
   /* ─── derived ─── */
-  const profilePhotoUrl = profilePhoto ? `http://localhost/ULATMATIC/${profilePhoto}` : null;
+  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
   const totalUsers = Object.values(stats).reduce((a, b) => a + b, 0);
 
@@ -698,7 +698,7 @@ export default function SuperAdminDashboardPage({
                               <div className="flex items-center gap-3">
                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
                                   {u.profile_photo ? (
-                                    <img src={`http://localhost/ULATMATIC/${u.profile_photo}`} alt="" className="h-full w-full rounded-full object-cover" />
+                                    <img src={`/${u.profile_photo}`} alt="" className="h-full w-full rounded-full object-cover" />
                                   ) : (
                                     <User className="h-4 w-4 text-gray-400" />
                                   )}

@@ -78,12 +78,12 @@ export default function HomeReports() {
       setLoading(true);
       try {
         const [complaintsRes, incidentsRes] = await Promise.all([
-          fetch('http://localhost/ULATMATIC/api/complaints/list.php', {
+          fetch('/api/complaints/list.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ all: true, status: 'ALL' }),
           }),
-          fetch('http://localhost/ULATMATIC/api/incidents/list.php', {
+          fetch('/api/incidents/list.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ all: true, status: 'ALL' }),
