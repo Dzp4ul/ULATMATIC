@@ -32,24 +32,49 @@ function api_apply_cors(): void
 
 function api_db(): mysqli
 {
-    $conn = new mysqli();
-
-    $ssl_ca = getenv('DB_SSL_CA') ?: '';
-    if ($ssl_ca !== '' && file_exists($ssl_ca)) {
-        $conn->ssl_set(null, null, $ssl_ca, null, null);
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $conn = mysqli_init();
+    if ($conn === false) {
+        error_log('DB connection failed: mysqli_init returned false');
+        api_send_json(500, [
+            'ok' => false,
+            'error' => 'DB connection failed',
+        ]);
     }
 
-    $conn->real_connect(
+    $ssl_ca = getenv('DB_SSL_CA') ?: '';
+    $ssl_mode = strtolower((string)(getenv('DB_SSL_MODE') ?: 'required'));
+    $flags = 0;
+
+    if ($ssl_ca !== '' && file_exists($ssl_ca)) {
+        $conn->ssl_set(null, null, $ssl_ca, null, null);
+        $flags |= MYSQLI_CLIENT_SSL;
+    } elseif (in_array($ssl_mode, ['required', 'verify_ca', 'verify_identity'], true)) {
+        $flags |= MYSQLI_CLIENT_SSL;
+    }
+
+    $connected = @$conn->real_connect(
         DB_HOST,
         DB_USER,
         DB_PASSWORD,
         DB_NAME,
         DB_PORT,
         null,
-        $ssl_ca !== '' ? MYSQLI_CLIENT_SSL : MYSQLI_CLIENT_SSL
+        $flags
     );
 
-    if ($conn->connect_error) {
+    if (!$connected || $conn->connect_error) {
+        error_log(sprintf(
+            'DB connection failed: %s (%d) host=%s port=%d db=%s user=%s ssl_ca=%s ssl_mode=%s',
+            (string)$conn->connect_error,
+            (int)$conn->connect_errno,
+            DB_HOST,
+            DB_PORT,
+            DB_NAME,
+            DB_USER,
+            $ssl_ca !== '' ? 'set' : 'unset',
+            $ssl_mode
+        ));
         api_send_json(500, [
             'ok' => false,
             'error' => 'DB connection failed',
