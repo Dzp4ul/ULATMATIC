@@ -32,7 +32,22 @@ function api_apply_cors(): void
 
 function api_db(): mysqli
 {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
+    $conn = new mysqli();
+
+    $ssl_ca = getenv('DB_SSL_CA') ?: '';
+    if ($ssl_ca !== '' && file_exists($ssl_ca)) {
+        $conn->ssl_set(null, null, $ssl_ca, null, null);
+    }
+
+    $conn->real_connect(
+        DB_HOST,
+        DB_USER,
+        DB_PASSWORD,
+        DB_NAME,
+        DB_PORT,
+        null,
+        $ssl_ca !== '' ? MYSQLI_CLIENT_SSL : MYSQLI_CLIENT_SSL
+    );
 
     if ($conn->connect_error) {
         api_send_json(500, [
