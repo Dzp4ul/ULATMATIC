@@ -4,6 +4,7 @@ import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png
 import { FileDropzone } from '../components/FileDropzone';
 
 type SignUpErrorField = 'phone' | 'password' | 'confirmPassword' | 'gender' | 'idUpload' | 'selfie' | 'form' | 'otp';
+type ApiResponsePayload = { ok?: boolean; error?: string; message?: string };
 
 export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) => void }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -200,6 +201,24 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     }
   };
 
+  const parseApiPayload = async (res: Response): Promise<ApiResponsePayload> => {
+    const raw = await res.text();
+    if (!raw.trim()) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(raw) as ApiResponsePayload;
+    } catch {
+      const plain = raw
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 220);
+      return { ok: false, error: plain || `Request failed (HTTP ${res.status})` };
+    }
+  };
+
   const submitResidentRegistration = async () => {
     const normalizedPhone = phone.trim();
     if (!isPhoneValid(normalizedPhone)) {
@@ -251,9 +270,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
       body: form,
     });
 
-    const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
+    const data = await parseApiPayload(res);
     if (!res.ok || !data.ok) {
-      setFieldError('form', data.error ?? 'Registration failed');
+      setFieldError('form', data.error ?? `Registration failed (HTTP ${res.status})`);
       return false;
     }
 
@@ -358,9 +377,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                         body: JSON.stringify({ email }),
                       });
 
-                      const data = (await res.json()) as { ok?: boolean; error?: string };
+                      const data = await parseApiPayload(res);
                       if (!res.ok || !data.ok) {
-                        setFieldError('otp', data.error ?? 'Failed to send OTP');
+                        setFieldError('form', data.error ?? `Failed to send OTP (HTTP ${res.status})`);
                         return;
                       }
 
@@ -660,7 +679,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
 
               <canvas ref={canvasRef} className="hidden" />
 
-              {error && (errorField === 'form' || errorField === null) ? (
+              {error && (errorField === 'form' || errorField === 'otp' || errorField === null) ? (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
               ) : null}
 
@@ -749,9 +768,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                           body: JSON.stringify({ email }),
                         });
 
-                        const data = (await res.json()) as { ok?: boolean; error?: string };
+                        const data = await parseApiPayload(res);
                         if (!res.ok || !data.ok) {
-                          setFieldError('otp', data.error ?? 'Failed to resend OTP');
+                          setFieldError('otp', data.error ?? `Failed to resend OTP (HTTP ${res.status})`);
                           return;
                         }
 
@@ -807,9 +826,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                         body: JSON.stringify({ email, otp }),
                       });
 
-                      const data = (await res.json()) as { ok?: boolean; error?: string };
+                      const data = await parseApiPayload(res);
                       if (!res.ok || !data.ok) {
-                        setFieldError('otp', data.error ?? 'OTP verification failed');
+                        setFieldError('otp', data.error ?? `OTP verification failed (HTTP ${res.status})`);
                         return;
                       }
 

@@ -6,6 +6,9 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mailer_config.php';
 require_once __DIR__ . '/email_template.php';
 
+use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\PHPMailer;
+
 api_apply_cors();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -30,9 +33,6 @@ if (!file_exists($autoload)) {
 
 require_once $autoload;
 
-use PHPMailer\PHPMailer\Exception;
-use PHPMailer\PHPMailer\PHPMailer;
-
 $body = api_read_json_body();
 $email = trim((string)($body['email'] ?? ''));
 
@@ -43,13 +43,29 @@ if ($email === '') {
     ]);
 }
 
-$otp = (string)random_int(100000, 999999);
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    api_send_json(400, [
+        'ok' => false,
+        'error' => 'Invalid email address',
+    ]);
+}
+
+try {
+    $otp = (string)random_int(100000, 999999);
+} catch (Throwable $e) {
+    error_log('OTP generation failed: ' . $e->getMessage());
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Failed to generate OTP',
+    ]);
+}
+
 $otpHash = password_hash($otp, PASSWORD_DEFAULT);
 $expiresAt = (new DateTimeImmutable('now'))->modify('+10 minutes')->format('Y-m-d H:i:s');
 
 $conn = api_db();
 
-$conn->query(
+$tableReady = $conn->query(
     "CREATE TABLE IF NOT EXISTS email_otps (\n"
         . "  email VARCHAR(255) NOT NULL PRIMARY KEY,\n"
         . "  otp_hash VARCHAR(255) NOT NULL,\n"
@@ -58,6 +74,15 @@ $conn->query(
         . "  attempts INT NOT NULL DEFAULT 0\n"
         . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 );
+if ($tableReady === false) {
+    $dbErr = $conn->error;
+    $conn->close();
+    error_log('OTP table init failed: ' . $dbErr);
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'OTP service unavailable. Please try again.',
+    ]);
+}
 
 $stmt = $conn->prepare(
     'INSERT INTO email_otps (email, otp_hash, expires_at, attempts) VALUES (?, ?, ?, 0) '
@@ -73,24 +98,66 @@ if (!$stmt) {
 }
 
 $stmt->bind_param('sss', $email, $otpHash, $expiresAt);
-$stmt->execute();
+if (!$stmt->execute()) {
+    $dbErr = $stmt->error;
+    $stmt->close();
+    $conn->close();
+    error_log('OTP save execute failed: ' . $dbErr);
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'OTP save failed',
+    ]);
+}
 $stmt->close();
 $conn->close();
 
 $config = api_mailer_config();
+if (
+    trim((string)($config['host'] ?? '')) === '' ||
+    trim((string)($config['username'] ?? '')) === '' ||
+    trim((string)($config['password'] ?? '')) === '' ||
+    trim((string)($config['from_email'] ?? '')) === ''
+) {
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Mail server is not configured',
+    ]);
+}
 
 $mail = new PHPMailer(true);
 
 try {
+    $secure = strtolower(trim((string)($config['secure'] ?? 'tls')));
+    $allowSelfSigned = filter_var((string)(getenv('MAIL_ALLOW_SELF_SIGNED') ?: '0'), FILTER_VALIDATE_BOOLEAN);
+
     $mail->isSMTP();
     $mail->Host = $config['host'];
     $mail->SMTPAuth = true;
     $mail->Username = $config['username'];
     $mail->Password = $config['password'];
-    $mail->SMTPSecure = $config['secure'];
     $mail->Port = (int)$config['port'];
     $mail->Timeout = 10;
     $mail->SMTPKeepAlive = false;
+    $mail->CharSet = 'UTF-8';
+
+    if ($secure === '' || $secure === 'none' || $secure === 'off' || $secure === '0') {
+        $mail->SMTPSecure = false;
+        $mail->SMTPAutoTLS = false;
+    } elseif ($secure === 'ssl' || $secure === 'smtps') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    } else {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    }
+
+    if ($allowSelfSigned) {
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+    }
 
     $mail->setFrom($config['from_email'], $config['from_name']);
     $mail->addAddress($email);
@@ -113,8 +180,9 @@ try {
         'message' => 'OTP sent',
     ]);
 } catch (Exception $e) {
-    api_send_json(500, [
+    error_log('OTP mail send failed for ' . $email . ': ' . $mail->ErrorInfo . ' | ' . $e->getMessage());
+    api_send_json(502, [
         'ok' => false,
-        'error' => 'Mailer Error: ' . $mail->ErrorInfo,
+        'error' => 'Unable to send OTP email. Please try again.',
     ]);
 }
