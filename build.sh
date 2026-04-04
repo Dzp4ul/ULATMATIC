@@ -24,6 +24,12 @@ else
     php composer.phar install --no-dev --optimize-autoloader
 fi
 
+if [ ! -f "$REPO_DIR/vendor/phpmailer/phpmailer/src/PHPMailer.php" ]; then
+    echo "ERROR: PHPMailer was not installed. Build cannot continue."
+    exit 1
+fi
+echo "==> PHPMailer dependency is present."
+
 echo "==> Installing frontend dependencies..."
 cd "$REPO_DIR/project"
 npm install

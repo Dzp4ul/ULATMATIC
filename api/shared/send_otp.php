@@ -21,6 +21,37 @@ function api_send_otp_error(int $statusCode, string $publicMessage, string $logM
     ]);
 }
 
+function api_bootstrap_phpmailer(string $autoloadPath): bool
+{
+    if (is_file($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (class_exists(PHPMailer::class)) {
+        return true;
+    }
+
+    // Fallback for deployments where Composer autoload exists but package map is incomplete.
+    $mailerSrc = __DIR__ . '/../../vendor/phpmailer/phpmailer/src';
+    $requiredFiles = [
+        $mailerSrc . '/Exception.php',
+        $mailerSrc . '/PHPMailer.php',
+        $mailerSrc . '/SMTP.php',
+    ];
+
+    foreach ($requiredFiles as $file) {
+        if (!is_file($file)) {
+            return false;
+        }
+    }
+
+    foreach ($requiredFiles as $file) {
+        require_once $file;
+    }
+
+    return class_exists(PHPMailer::class);
+}
+
 api_apply_cors();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -37,13 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $autoload = __DIR__ . '/../../vendor/autoload.php';
-    if (!is_file($autoload)) {
-        api_send_otp_error(500, 'OTP service unavailable. Missing mailer dependency.', 'vendor/autoload.php not found');
-    }
-
-    require_once $autoload;
-    if (!class_exists(PHPMailer::class)) {
-        api_send_otp_error(500, 'OTP service unavailable. Mailer class not found.', 'PHPMailer class missing after autoload');
+    if (!api_bootstrap_phpmailer($autoload)) {
+        api_send_otp_error(
+            500,
+            'OTP service unavailable. Mailer dependency missing.',
+            'PHPMailer not loadable. autoload=' . (is_file($autoload) ? 'present' : 'missing')
+        );
     }
 
     $body = api_read_json_body();
