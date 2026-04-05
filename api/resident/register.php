@@ -29,10 +29,19 @@ $gender = trim((string)($_POST['gender'] ?? ''));
 $sitio = trim((string)($_POST['sitio'] ?? ''));
 $userPass = trim((string)($_POST['user_pass'] ?? ''));
 
-if ($fname === '' || $email === '' || $phone === '' || $gender === '' || $sitio === '' || $userPass === '') {
+$missingFields = [];
+if ($fname === '') $missingFields[] = 'First name';
+if ($lname === '') $missingFields[] = 'Last name';
+if ($email === '') $missingFields[] = 'Email';
+if ($phone === '') $missingFields[] = 'Phone';
+if ($gender === '') $missingFields[] = 'Gender';
+if ($sitio === '') $missingFields[] = 'Address';
+if ($userPass === '') $missingFields[] = 'Password';
+
+if (!empty($missingFields)) {
     api_send_json(400, [
         'ok' => false,
-        'error' => 'Missing required fields',
+        'error' => 'Missing required fields: ' . implode(', ', $missingFields),
     ]);
 }
 
