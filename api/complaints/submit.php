@@ -53,9 +53,25 @@ if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
 
     if ($err !== UPLOAD_ERR_NO_FILE) {
         if ($err !== UPLOAD_ERR_OK) {
+            $uploadErrorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'File exceeds server upload limit',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds form upload limit',
+                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+                UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                UPLOAD_ERR_EXTENSION => 'Upload stopped by extension',
+            ];
+
+            $detail = $uploadErrorMessages[$err] ?? 'Unknown upload error';
+            if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
+                $detail .= '. Server limits: upload_max_filesize=' . (string)ini_get('upload_max_filesize')
+                    . ', post_max_size=' . (string)ini_get('post_max_size');
+            }
+
             api_send_json(400, [
                 'ok' => false,
-                'error' => 'Failed to upload evidence file',
+                'error' => 'Failed to upload evidence file: ' . $detail,
             ]);
         }
 
