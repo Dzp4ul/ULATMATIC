@@ -1,5 +1,6 @@
 import { useState, type RefObject } from 'react';
 import { FileUp } from 'lucide-react';
+import { compressImage } from '../utils/imageCompression';
 
 export function FileDropzone({
   label,
@@ -10,6 +11,7 @@ export function FileDropzone({
   inputRef,
   onChange,
   onClear,
+  maxSizeMB = 5,
 }: {
   label: string;
   file: File | null;
@@ -19,16 +21,63 @@ export function FileDropzone({
   inputRef: RefObject<HTMLInputElement>;
   onChange: (file: File | null) => void;
   onClear: () => void;
+  maxSizeMB?: number;
 }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasPreview = Boolean(file || previewUrl);
   const displayName = file?.name ?? 'Current file';
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   const setFileToInput = (nextFile: File) => {
     if (!inputRef.current) return;
     const dt = new DataTransfer();
     dt.items.add(nextFile);
     inputRef.current.files = dt.files;
+  };
+
+  const validateAndSetFile = async (nextFile: File | null) => {
+    if (!nextFile) {
+      setError(null);
+      onChange(null);
+      return;
+    }
+
+    // Check if it's an image
+    const isImage = nextFile.type.startsWith('image/');
+    
+    if (nextFile.size > maxSizeBytes) {
+      if (isImage) {
+        // Try to compress the image
+        setError('Compressing image...');
+        try {
+          const compressed = await compressImage(nextFile, maxSizeMB);
+          if (compressed.size > maxSizeBytes) {
+            const fileSizeMB = (compressed.size / (1024 * 1024)).toFixed(2);
+            setError(`File size (${fileSizeMB}MB) still exceeds ${maxSizeMB}MB after compression. Please choose a smaller image.`);
+            if (inputRef.current) inputRef.current.value = '';
+            onChange(null);
+          } else {
+            setError(null);
+            onChange(compressed);
+          }
+        } catch (err) {
+          const fileSizeMB = (nextFile.size / (1024 * 1024)).toFixed(2);
+          setError(`File size (${fileSizeMB}MB) exceeds ${maxSizeMB}MB and compression failed. Please choose a smaller image.`);
+          if (inputRef.current) inputRef.current.value = '';
+          onChange(null);
+        }
+      } else {
+        const fileSizeMB = (nextFile.size / (1024 * 1024)).toFixed(2);
+        setError(`File size (${fileSizeMB}MB) exceeds ${maxSizeMB}MB limit. Please choose a smaller file.`);
+        if (inputRef.current) inputRef.current.value = '';
+        onChange(null);
+      }
+      return;
+    }
+
+    setError(null);
+    onChange(nextFile);
   };
 
   return (
@@ -61,7 +110,7 @@ export function FileDropzone({
           const nextFile = e.dataTransfer.files?.[0];
           if (!nextFile) return;
           setFileToInput(nextFile);
-          onChange(nextFile);
+          validateAndSetFile(nextFile);
         }}
       >
         <input
@@ -72,7 +121,7 @@ export function FileDropzone({
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           onChange={(e) => {
             const nextFile = e.target.files?.[0] ?? null;
-            onChange(nextFile);
+            validateAndSetFile(nextFile);
           }}
         />
 
@@ -117,6 +166,11 @@ export function FileDropzone({
           </div>
         )}
       </div>
+      {error && (
+        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

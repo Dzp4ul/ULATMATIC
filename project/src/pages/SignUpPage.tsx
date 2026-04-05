@@ -140,14 +140,28 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0);
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
-        setSelfieFile(file);
-        setCameraOpen(false);
-        stopCamera();
-      }
-    }, 'image/jpeg', 0.9);
+    
+    // Compress to ensure under 5MB
+    let quality = 0.9;
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    const tryCompress = (q: number) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          if (blob.size > maxSize && q > 0.3) {
+            // Try with lower quality
+            tryCompress(q - 0.1);
+          } else {
+            const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+            setSelfieFile(file);
+            setCameraOpen(false);
+            stopCamera();
+          }
+        }
+      }, 'image/jpeg', q);
+    };
+    
+    tryCompress(quality);
   };
 
   useEffect(() => {
@@ -622,7 +636,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  Upload any valid ID or document proving you live in Bigte, Norzagaray, Bulacan.
+                  Upload any valid ID or document proving you live in Bigte, Norzagaray, Bulacan. Maximum 5MB per file.
                 </p>
                 {error && errorField === 'idUpload' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
