@@ -19,8 +19,16 @@ export async function compressImage(file: File, maxSizeMB: number = 5): Promise<
         let width = img.width;
         let height = img.height;
         
-        // Calculate new dimensions to reduce file size
-        const maxDimension = 1920; // Max width or height
+        // More aggressive resizing for very large files
+        let maxDimension = 1920;
+        if (file.size > 10 * 1024 * 1024) {
+          // Files over 10MB: resize to 1280px max
+          maxDimension = 1280;
+        } else if (file.size > 7 * 1024 * 1024) {
+          // Files over 7MB: resize to 1600px max
+          maxDimension = 1600;
+        }
+        
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
             height = (height / width) * maxDimension;
@@ -67,7 +75,9 @@ export async function compressImage(file: File, maxSizeMB: number = 5): Promise<
           );
         };
         
-        tryCompress(0.9);
+        // Start with lower quality for very large files
+        const startQuality = file.size > 10 * 1024 * 1024 ? 0.7 : 0.9;
+        tryCompress(startQuality);
       };
       
       img.onerror = () => {

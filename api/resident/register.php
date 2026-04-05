@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
+require_once __DIR__ . '/../shared/image_compression.php';
 require_once __DIR__ . '/user_schema.php';
 
 api_apply_cors();
@@ -175,10 +176,39 @@ $frontAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $frontFilename;
 $backAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $backFilename;
 $selfieAbs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $selfieFilename;
 
-if (!move_uploaded_file((string)$front['tmp_name'], $frontAbs) || !move_uploaded_file((string)$back['tmp_name'], $backAbs) || !move_uploaded_file((string)$selfie['tmp_name'], $selfieAbs)) {
+// Move uploaded files to temporary location first
+$frontTemp = $uploadsAbsDir . DIRECTORY_SEPARATOR . 'temp_' . $frontFilename;
+$backTemp = $uploadsAbsDir . DIRECTORY_SEPARATOR . 'temp_' . $backFilename;
+$selfieTemp = $uploadsAbsDir . DIRECTORY_SEPARATOR . 'temp_' . $selfieFilename;
+
+if (!move_uploaded_file((string)$front['tmp_name'], $frontTemp) || 
+    !move_uploaded_file((string)$back['tmp_name'], $backTemp) || 
+    !move_uploaded_file((string)$selfie['tmp_name'], $selfieTemp)) {
     api_send_json(500, [
         'ok' => false,
         'error' => 'Failed to save uploaded files',
+    ]);
+}
+
+// Compress images if needed (max 5MB)
+$frontCompressed = compress_image($frontTemp, $frontAbs, 5);
+$backCompressed = compress_image($backTemp, $backAbs, 5);
+$selfieCompressed = compress_image($selfieTemp, $selfieAbs, 5);
+
+// Clean up temp files
+@unlink($frontTemp);
+@unlink($backTemp);
+@unlink($selfieTemp);
+
+if (!$frontCompressed || !$backCompressed || !$selfieCompressed) {
+    // Clean up any successfully saved files
+    @unlink($frontAbs);
+    @unlink($backAbs);
+    @unlink($selfieAbs);
+    
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Failed to process uploaded images. Please try with smaller images.',
     ]);
 }
 
