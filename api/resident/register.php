@@ -68,10 +68,29 @@ $front = $_FILES['front_id'];
 $back = $_FILES['back_id'];
 $selfie = $_FILES['selfie'];
 
-if (($front['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($back['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($selfie['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+$frontError = $front['error'] ?? UPLOAD_ERR_NO_FILE;
+$backError = $back['error'] ?? UPLOAD_ERR_NO_FILE;
+$selfieError = $selfie['error'] ?? UPLOAD_ERR_NO_FILE;
+
+if ($frontError !== UPLOAD_ERR_OK || $backError !== UPLOAD_ERR_OK || $selfieError !== UPLOAD_ERR_OK) {
+    $errorMessages = [
+        UPLOAD_ERR_INI_SIZE => 'File exceeds server upload limit',
+        UPLOAD_ERR_FORM_SIZE => 'File exceeds form upload limit',
+        UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+        UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+        UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+        UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+        UPLOAD_ERR_EXTENSION => 'File upload stopped by extension',
+    ];
+    
+    $errors = [];
+    if ($frontError !== UPLOAD_ERR_OK) $errors[] = 'Front ID: ' . ($errorMessages[$frontError] ?? 'Unknown error');
+    if ($backError !== UPLOAD_ERR_OK) $errors[] = 'Back ID: ' . ($errorMessages[$backError] ?? 'Unknown error');
+    if ($selfieError !== UPLOAD_ERR_OK) $errors[] = 'Selfie: ' . ($errorMessages[$selfieError] ?? 'Unknown error');
+    
     api_send_json(400, [
         'ok' => false,
-        'error' => 'Failed to upload files',
+        'error' => 'Failed to upload files: ' . implode(', ', $errors),
     ]);
 }
 
@@ -109,13 +128,18 @@ if ($uploadsDir === false) {
 $uploadsRelDir = 'uploads/resident_ids';
 $uploadsAbsDir = $uploadsDir . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'resident_ids';
 if (!is_dir($uploadsAbsDir)) {
-    @mkdir($uploadsAbsDir, 0755, true);
+    if (!@mkdir($uploadsAbsDir, 0755, true)) {
+        api_send_json(500, [
+            'ok' => false,
+            'error' => 'Failed to create uploads directory. Please contact administrator.',
+        ]);
+    }
 }
 
-if (!is_dir($uploadsAbsDir)) {
+if (!is_writable($uploadsAbsDir)) {
     api_send_json(500, [
         'ok' => false,
-        'error' => 'Failed to create uploads directory',
+        'error' => 'Uploads directory is not writable. Please contact administrator.',
     ]);
 }
 
