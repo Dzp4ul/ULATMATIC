@@ -97,6 +97,12 @@ if ($frontError !== UPLOAD_ERR_OK || $backError !== UPLOAD_ERR_OK || $selfieErro
     if ($frontError !== UPLOAD_ERR_OK) $errors[] = 'Front ID: ' . ($errorMessages[$frontError] ?? 'Unknown error');
     if ($backError !== UPLOAD_ERR_OK) $errors[] = 'Back ID: ' . ($errorMessages[$backError] ?? 'Unknown error');
     if ($selfieError !== UPLOAD_ERR_OK) $errors[] = 'Selfie: ' . ($errorMessages[$selfieError] ?? 'Unknown error');
+
+    $hasIniSizeError = in_array(UPLOAD_ERR_INI_SIZE, [$frontError, $backError, $selfieError], true);
+    if ($hasIniSizeError) {
+        $errors[] = 'Server limits now: upload_max_filesize=' . (string)ini_get('upload_max_filesize')
+            . ', post_max_size=' . (string)ini_get('post_max_size');
+    }
     
     api_send_json(400, [
         'ok' => false,
