@@ -4,6 +4,10 @@ header('Content-Type: application/json');
 
 $diagnostics = [
     'php_version' => PHP_VERSION,
+    'loaded_php_ini' => php_ini_loaded_file(),
+    'scanned_php_ini' => php_ini_scanned_files(),
+    'user_ini_filename' => ini_get('user_ini.filename'),
+    'user_ini_cache_ttl' => ini_get('user_ini.cache_ttl'),
     'upload_max_filesize' => ini_get('upload_max_filesize'),
     'post_max_size' => ini_get('post_max_size'),
     'max_file_uploads' => ini_get('max_file_uploads'),

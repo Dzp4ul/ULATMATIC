@@ -4,7 +4,14 @@ import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png
 import { FileDropzone } from '../components/FileDropzone';
 
 type SignUpErrorField = 'phone' | 'password' | 'confirmPassword' | 'gender' | 'idUpload' | 'selfie' | 'form' | 'otp';
-type ApiResponsePayload = { ok?: boolean; error?: string; message?: string };
+type ApiResponsePayload = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  upload_max_filesize?: string;
+  post_max_size?: string;
+  recommended_client_limit_bytes?: number;
+};
 
 export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) => void }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -37,6 +44,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   const [idBackPreviewUrl, setIdBackPreviewUrl] = useState<string | null>(null);
   const idFrontInputRef = useRef<HTMLInputElement>(null);
   const idBackInputRef = useRef<HTMLInputElement>(null);
+  const appIdUploadLimitMB = 5;
+  const [idUploadLimitMB, setIdUploadLimitMB] = useState<number>(appIdUploadLimitMB);
+  const [idUploadLimitNotice, setIdUploadLimitNotice] = useState<string | null>(null);
 
   // Selfie camera state
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
@@ -141,9 +151,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
     }
     ctx.drawImage(video, 0, 0);
     
-    // Compress to ensure under 5MB
+    // Compress to fit the active upload limit.
     let quality = 0.9;
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = idUploadLimitMB * 1024 * 1024;
     
     const tryCompress = (q: number) => {
       canvas.toBlob((blob) => {
@@ -196,6 +206,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
   ];
   const strengthIndex = Math.min(passwordScore, strengthSteps.length - 1);
   const strength = strengthSteps[strengthIndex];
+  const idUploadLimitLabel = idUploadLimitMB >= appIdUploadLimitMB ? '5' : idUploadLimitMB.toFixed(1);
 
   const formatSeconds = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -232,6 +243,52 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
       return { ok: false, error: plain || `Request failed (HTTP ${res.status})` };
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncUploadLimit = async () => {
+      try {
+        const res = await fetch('/api/shared/upload_limits.php', { method: 'GET' });
+        const raw = await res.text();
+        let data: ApiResponsePayload = {};
+        if (raw.trim()) {
+          try {
+            data = JSON.parse(raw) as ApiResponsePayload;
+          } catch {
+            data = {};
+          }
+        }
+
+        if (!res.ok || !data.ok || cancelled) {
+          return;
+        }
+
+        const recommendedBytes = Number(data.recommended_client_limit_bytes ?? 0);
+        if (!Number.isFinite(recommendedBytes) || recommendedBytes <= 0) {
+          return;
+        }
+
+        const recommendedMB = Math.max(0.5, Math.floor((recommendedBytes / (1024 * 1024)) * 10) / 10);
+        const effectiveLimitMB = Math.min(appIdUploadLimitMB, recommendedMB);
+
+        setIdUploadLimitMB(effectiveLimitMB);
+        if (effectiveLimitMB < appIdUploadLimitMB) {
+          const serverLimitLabel = (data.upload_max_filesize ?? `${effectiveLimitMB.toFixed(1)}MB`).toString();
+          setIdUploadLimitNotice(`Server upload limit is currently ${serverLimitLabel} per file, so images are auto-compressed to fit.`);
+        } else {
+          setIdUploadLimitNotice(null);
+        }
+      } catch {
+        // Keep default client-side limit when endpoint is unavailable.
+      }
+    };
+
+    syncUploadLimit();
+    return () => {
+      cancelled = true;
+    };
+  }, [appIdUploadLimitMB]);
 
   const submitResidentRegistration = async () => {
     const normalizedPhone = phone.trim();
@@ -613,6 +670,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     file={idFrontFile}
                     previewUrl={idFrontPreviewUrl}
                     accept="image/*,.pdf"
+                    maxSizeMB={idUploadLimitMB}
                     required
                     inputRef={idFrontInputRef}
                     onChange={setIdFrontFile}
@@ -626,6 +684,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                     file={idBackFile}
                     previewUrl={idBackPreviewUrl}
                     accept="image/*,.pdf"
+                    maxSizeMB={idUploadLimitMB}
                     required
                     inputRef={idBackInputRef}
                     onChange={setIdBackFile}
@@ -636,8 +695,9 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  Upload any valid ID or document proving you live in Bigte, Norzagaray, Bulacan. Maximum 5MB per file.
+                  Upload any valid ID or document proving you live in Bigte, Norzagaray, Bulacan. Maximum {idUploadLimitLabel}MB per file.
                 </p>
+                {idUploadLimitNotice ? <p className="text-xs text-amber-700 mt-1">{idUploadLimitNotice}</p> : null}
                 {error && errorField === 'idUpload' ? <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
               </div>
 
