@@ -54,6 +54,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; contactNumber?: string; sitio?: string; picture?: string }>({});
   const [success, setSuccess] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingCopied, setTrackingCopied] = useState(false);
@@ -191,21 +192,17 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
-    if (!name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    if (!contactNumber.trim()) {
-      setError('Contact number is required');
-      return;
-    }
-    if (!sitio) {
-      setError('Sitio is required');
-      return;
-    }
-    if (!picture) {
-      setError('Picture is required');
+    const errors: { name?: string; contactNumber?: string; sitio?: string; picture?: string } = {};
+
+    if (!name.trim()) errors.name = 'Name is required';
+    if (!contactNumber.trim()) errors.contactNumber = 'Contact number is required';
+    if (!sitio) errors.sitio = 'Sitio is required';
+    if (!picture) errors.picture = 'Picture is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -546,7 +543,6 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-red-800">Error</p>
               <p className="text-sm text-red-700 mt-0.5">{error}</p>
             </div>
           </div>
@@ -596,21 +592,26 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                   </div>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="w-full bg-gradient-to-b from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 rounded-xl p-12 text-center transition-all border-2 border-dashed border-gray-300"
-                >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center">
-                      <Camera className="w-8 h-8 text-brand" />
+                <div>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="w-full bg-gradient-to-b from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-150 rounded-xl p-12 text-center transition-all border-2 border-dashed border-gray-300"
+                  >
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-brand" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-gray-900">Capture Photo</p>
+                        <p className="text-sm text-gray-600 mt-1">Click to open camera</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-lg font-bold text-gray-900">Capture Photo</p>
-                      <p className="text-sm text-gray-600 mt-1">Click to open camera</p>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                  {fieldErrors.picture && (
+                    <p className="text-sm text-red-600 mt-2">{fieldErrors.picture}</p>
+                  )}
+                </div>
               )}
             </>
           ) : (
@@ -656,6 +657,9 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                   placeholder="Enter your full name"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
                 />
+                {fieldErrors.name && (
+                  <p className="text-sm text-red-600 mt-2">{fieldErrors.name}</p>
+                )}
               </div>
 
               {/* Contact Number */}
@@ -673,6 +677,9 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                   placeholder="09XX-XXX-XXXX"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
                 />
+                {fieldErrors.contactNumber && (
+                  <p className="text-sm text-red-600 mt-2">{fieldErrors.contactNumber}</p>
+                )}
               </div>
 
               {/* Sitio */}
@@ -695,6 +702,9 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                     </option>
                   ))}
                 </select>
+                {fieldErrors.sitio && (
+                  <p className="text-sm text-red-600 mt-2">{fieldErrors.sitio}</p>
+                )}
               </div>
 
               {/* Description */}
