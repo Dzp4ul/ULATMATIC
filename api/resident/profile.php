@@ -32,7 +32,7 @@ if ($id <= 0) {
 $conn = api_db();
 api_ensure_resident_user_schema($conn);
 
-$stmt = $conn->prepare('SELECT id, fname, midname, lname, email, phone, gender, sitio, front_id, back_id, profile_photo FROM resident_user WHERE id = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT id, fname, midname, lname, email, phone, gender, sitio, front_id, back_id, profile_photo, selfie_photo FROM resident_user WHERE id = ? LIMIT 1');
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -55,6 +55,11 @@ if (!$user) {
     ]);
 }
 
+$profilePhoto = $user['profile_photo'] ?? null;
+if (!$profilePhoto) {
+    $profilePhoto = $user['selfie_photo'] ?? null;
+}
+
 api_send_json(200, [
     'ok' => true,
     'user' => [
@@ -68,7 +73,7 @@ api_send_json(200, [
         'sitio' => (string)($user['sitio'] ?? ''),
         'front_id' => (string)($user['front_id'] ?? ''),
         'back_id' => (string)($user['back_id'] ?? ''),
-        'profile_photo' => $user['profile_photo'] ?? null,
+        'profile_photo' => $profilePhoto,
         'role' => 'RESIDENT',
     ],
 ]);

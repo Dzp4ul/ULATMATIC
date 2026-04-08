@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, AlertCircle, CheckCircle, ArrowLeft, Smartphone, User, Phone, MapPin, FileText, Eye, Clock } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle, ArrowLeft, Smartphone, User, Phone, MapPin, FileText, Eye, Clock, Copy, Check } from 'lucide-react';
 import { clearLastEmergencyTrackingNumber, getLastEmergencyTrackingNumber, saveLastEmergencyTrackingNumber } from '../utils/emergency-report-session';
 
 const SITIOS = [
@@ -56,9 +56,11 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingCopied, setTrackingCopied] = useState(false);
   const [incidentData, setIncidentData] = useState<IncidentData | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const copyFeedbackTimeoutRef = useRef<number | null>(null);
   const restoredFromStorageRef = useRef(false);
 
   useEffect(() => {
@@ -68,6 +70,9 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
       }
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+      }
+      if (copyFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimeoutRef.current);
       }
     };
   }, [stream]);
@@ -286,6 +291,38 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
     setIncidentData(null);
     setSuccess(false);
     setTrackingNumber('');
+    setTrackingCopied(false);
+  };
+
+  const handleCopyTrackingNumber = async () => {
+    if (!trackingNumber) return;
+
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(trackingNumber);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = trackingNumber;
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      setTrackingCopied(true);
+      if (copyFeedbackTimeoutRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimeoutRef.current);
+      }
+      copyFeedbackTimeoutRef.current = window.setTimeout(() => {
+        setTrackingCopied(false);
+      }, 1800);
+    } catch {
+      setError('Unable to copy tracking number. Please copy it manually.');
+    }
   };
 
   const normalizedIncidentStatus = (incidentData?.status ?? '').trim().toUpperCase();
@@ -319,6 +356,7 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
             <button
               onClick={() => {
                 setSuccess(false);
+                setTrackingCopied(false);
                 if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
                 onNavigate('/');
               }}
@@ -348,8 +386,19 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
 
             {/* Tracking Number */}
             <div className="bg-white border-2 border-brand rounded-lg p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-2">Your Tracking Number</p>
-              <p className="text-3xl font-bold font-mono text-brand">{trackingNumber}</p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-sm text-gray-600">Your Tracking Number</p>
+                <button
+                  type="button"
+                  onClick={handleCopyTrackingNumber}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-brand/30 bg-brand/5 px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:bg-brand/10"
+                  aria-label="Copy tracking number"
+                >
+                  {trackingCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {trackingCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="text-3xl font-bold font-mono text-brand break-all">{trackingNumber}</p>
             </div>
 
             <button

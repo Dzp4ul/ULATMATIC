@@ -45,7 +45,7 @@ if ($id <= 0) {
 $conn = api_db();
 api_ensure_resident_user_schema($conn);
 
-$stmt = $conn->prepare('SELECT fname, midname, lname, email, phone, gender, sitio, front_id, back_id, user_pass, profile_photo FROM resident_user WHERE id = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT fname, midname, lname, email, phone, gender, sitio, front_id, back_id, user_pass, profile_photo, selfie_photo FROM resident_user WHERE id = ? LIMIT 1');
 if (!$stmt) {
     $conn->close();
     api_send_json(500, [
@@ -303,6 +303,21 @@ if (!$stmt) {
 $stmt->bind_param('sssssssssssi', $fname, $midname, $lname, $email, $phone, $gender, $sitio, $frontIdPath, $backIdPath, $hashedPass, $profilePath, $id);
 $stmt->execute();
 $stmt->close();
+
+$stmtFetch = $conn->prepare('SELECT profile_photo, selfie_photo FROM resident_user WHERE id = ? LIMIT 1');
+if ($stmtFetch) {
+    $stmtFetch->bind_param('i', $id);
+    $stmtFetch->execute();
+    $fetchResult = $stmtFetch->get_result();
+    $fetchedUser = $fetchResult ? $fetchResult->fetch_assoc() : null;
+    $stmtFetch->close();
+    if ($fetchedUser) {
+        $profilePath = $fetchedUser['profile_photo'] ?? null;
+        if (!$profilePath) {
+            $profilePath = $fetchedUser['selfie_photo'] ?? null;
+        }
+    }
+}
 $conn->close();
 
 api_send_json(200, [

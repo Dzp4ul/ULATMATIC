@@ -1,8 +1,10 @@
 import {
   AlertCircle,
+  Check,
   Calendar,
   Camera,
   ChevronDown,
+  Copy,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -126,6 +128,29 @@ function formatPhDate(dateStr: string | null | undefined): string {
     return `${datePart} | ${timePart}`;
   } catch {
     return dateStr;
+  }
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return copied;
+  } catch {
+    return false;
   }
 }
 
@@ -253,6 +278,8 @@ export default function ResidentDashboardPage({
   const [complaintError, setComplaintError] = useState<string | null>(null);
   const [complaintSuccess, setComplaintSuccess] = useState<string | null>(null);
   const [trackingNumber, setTrackingNumber] = useState<string | null>(null);
+  const [trackingNumberCopied, setTrackingNumberCopied] = useState(false);
+  const trackingCopyTimeoutRef = useRef<number | null>(null);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintRow | null>(null);
   const [evidencePreview, setEvidencePreview] = useState<{ url: string; isVideo: boolean } | null>(null);
   const [complaints, setComplaints] = useState<ComplaintRow[]>([]);
@@ -424,6 +451,8 @@ export default function ResidentDashboardPage({
   const [selectedIncident, setSelectedIncident] = useState<IncidentRow | null>(null);
   const [incidentEvidenceModal, setIncidentEvidenceModal] = useState<{ url: string; isVideo: boolean } | null>(null);
   const [incidentTrackingNumber, setIncidentTrackingNumber] = useState<string | null>(null);
+  const [incidentTrackingCopied, setIncidentTrackingCopied] = useState(false);
+  const incidentTrackingCopyTimeoutRef = useRef<number | null>(null);
 
   /* ── Search & Filter state ── */
   const [complaintSearch, setComplaintSearch] = useState('');
@@ -436,6 +465,63 @@ export default function ResidentDashboardPage({
   const [incidentSearch, setIncidentSearch] = useState('');
   const [incidentFilterStatus, setIncidentFilterStatus] = useState('ALL');
   const [incidentFilterCategory, setIncidentFilterCategory] = useState('ALL');
+
+  useEffect(() => {
+    return () => {
+      if (trackingCopyTimeoutRef.current !== null) {
+        window.clearTimeout(trackingCopyTimeoutRef.current);
+      }
+      if (incidentTrackingCopyTimeoutRef.current !== null) {
+        window.clearTimeout(incidentTrackingCopyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const closeComplaintTrackingModal = () => {
+    if (trackingCopyTimeoutRef.current !== null) {
+      window.clearTimeout(trackingCopyTimeoutRef.current);
+      trackingCopyTimeoutRef.current = null;
+    }
+    setTrackingNumberCopied(false);
+    setTrackingNumber(null);
+  };
+
+  const closeIncidentTrackingModal = () => {
+    if (incidentTrackingCopyTimeoutRef.current !== null) {
+      window.clearTimeout(incidentTrackingCopyTimeoutRef.current);
+      incidentTrackingCopyTimeoutRef.current = null;
+    }
+    setIncidentTrackingCopied(false);
+    setIncidentTrackingNumber(null);
+  };
+
+  const handleCopyComplaintTracking = async () => {
+    if (!trackingNumber) return;
+    const copied = await copyToClipboard(trackingNumber);
+    if (!copied) return;
+
+    setTrackingNumberCopied(true);
+    if (trackingCopyTimeoutRef.current !== null) {
+      window.clearTimeout(trackingCopyTimeoutRef.current);
+    }
+    trackingCopyTimeoutRef.current = window.setTimeout(() => {
+      setTrackingNumberCopied(false);
+    }, 1800);
+  };
+
+  const handleCopyIncidentTracking = async () => {
+    if (!incidentTrackingNumber) return;
+    const copied = await copyToClipboard(incidentTrackingNumber);
+    if (!copied) return;
+
+    setIncidentTrackingCopied(true);
+    if (incidentTrackingCopyTimeoutRef.current !== null) {
+      window.clearTimeout(incidentTrackingCopyTimeoutRef.current);
+    }
+    incidentTrackingCopyTimeoutRef.current = window.setTimeout(() => {
+      setIncidentTrackingCopied(false);
+    }, 1800);
+  };
 
   const navItems = useMemo<NavItem[]>(() => {
     const items: NavItem[] = [];
@@ -1451,6 +1537,7 @@ export default function ResidentDashboardPage({
 
                       setComplaintSuccess('Complaint submitted successfully.');
                       if (data.tracking_number) {
+                        setTrackingNumberCopied(false);
                         setTrackingNumber(data.tracking_number);
                       }
                       setComplaintTitle('');
@@ -1933,6 +2020,7 @@ export default function ResidentDashboardPage({
 
                         setIncidentSuccess('Incident report submitted successfully.');
                         if (data.tracking_number) {
+                          setIncidentTrackingCopied(false);
                           setIncidentTrackingNumber(data.tracking_number);
                         }
                         setIncidentType('');
@@ -2264,7 +2352,7 @@ export default function ResidentDashboardPage({
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
-            onClick={() => setTrackingNumber(null)}
+            onClick={closeComplaintTrackingModal}
             aria-label="Close"
           />
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100">
@@ -2276,20 +2364,31 @@ export default function ResidentDashboardPage({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setTrackingNumber(null)}
+                  onClick={closeComplaintTrackingModal}
                   className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
                 >
                   Close
                 </button>
               </div>
-              <div className="mt-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
-                {trackingNumber}
+              <div className="mt-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="break-all text-sm font-semibold text-brand">{trackingNumber}</div>
+                  <button
+                    type="button"
+                    onClick={handleCopyComplaintTracking}
+                    className="inline-flex items-center gap-1 rounded-md border border-brand/30 bg-white px-2 py-1 text-xs font-semibold text-brand transition hover:bg-brand/5"
+                    aria-label="Copy complaint tracking number"
+                  >
+                    {trackingNumberCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {trackingNumberCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={() => {
-                    setTrackingNumber(null);
+                    closeComplaintTrackingModal();
                     setActiveView('my_complaints');
                   }}
                   className="inline-flex items-center justify-center rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/5"
@@ -2298,7 +2397,7 @@ export default function ResidentDashboardPage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTrackingNumber(null)}
+                  onClick={closeComplaintTrackingModal}
                   className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
                 >
                   Done
@@ -2314,7 +2413,7 @@ export default function ResidentDashboardPage({
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
-            onClick={() => setIncidentTrackingNumber(null)}
+            onClick={closeIncidentTrackingModal}
             aria-label="Close"
           />
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100">
@@ -2326,20 +2425,31 @@ export default function ResidentDashboardPage({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIncidentTrackingNumber(null)}
+                  onClick={closeIncidentTrackingModal}
                   className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
                 >
                   Close
                 </button>
               </div>
-              <div className="mt-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
-                {incidentTrackingNumber}
+              <div className="mt-4 rounded-lg border border-brand/20 bg-brand/5 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="break-all text-sm font-semibold text-brand">{incidentTrackingNumber}</div>
+                  <button
+                    type="button"
+                    onClick={handleCopyIncidentTracking}
+                    className="inline-flex items-center gap-1 rounded-md border border-brand/30 bg-white px-2 py-1 text-xs font-semibold text-brand transition hover:bg-brand/5"
+                    aria-label="Copy incident tracking number"
+                  >
+                    {incidentTrackingCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {incidentTrackingCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={() => {
-                    setIncidentTrackingNumber(null);
+                    closeIncidentTrackingModal();
                     setActiveView('my_incidents');
                   }}
                   className="inline-flex items-center justify-center rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/5"
@@ -2348,7 +2458,7 @@ export default function ResidentDashboardPage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIncidentTrackingNumber(null)}
+                  onClick={closeIncidentTrackingModal}
                   className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
                 >
                   Done
