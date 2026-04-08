@@ -83,16 +83,15 @@ type KpMonthData = {
 function formatPhDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   try {
-    const d = new Date(dateStr);
+    // Parse as local time (database already returns in Philippine timezone)
+    const d = new Date(dateStr.replace(' ', 'T'));
     if (isNaN(d.getTime())) return dateStr;
     const datePart = d.toLocaleDateString('en-US', {
-      timeZone: 'Asia/Manila',
       month: 'long',
       day: 'numeric',
       year: 'numeric',
     });
     const timePart = d.toLocaleTimeString('en-US', {
-      timeZone: 'Asia/Manila',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -106,10 +105,10 @@ function formatPhDate(dateStr: string | null | undefined): string {
 function formatPhDateOnly(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   try {
-    const d = new Date(dateStr);
+    // Parse as local time (database already returns in Philippine timezone)
+    const d = new Date(dateStr.replace(' ', 'T'));
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-US', {
-      timeZone: 'Asia/Manila',
       month: 'long',
       day: 'numeric',
       year: 'numeric',
