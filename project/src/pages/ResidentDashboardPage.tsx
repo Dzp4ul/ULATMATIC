@@ -5,6 +5,7 @@ import {
   Camera,
   ChevronDown,
   Copy,
+  FileCheck,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -234,6 +235,7 @@ export default function ResidentDashboardPage({
     | 'hearing_schedules'
     | 'incident_report'
     | 'my_incidents'
+    | 'case_resolutions'
   >('dashboard');
   const [profileFname, setProfileFname] = useState('');
   const [profileMidname, setProfileMidname] = useState('');
@@ -457,6 +459,12 @@ export default function ResidentDashboardPage({
   const incidentTrackingCopyTimeoutRef = useRef<number | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // Case resolution state
+  const [caseResolutionFilter, setCaseResolutionFilter] = useState<'all' | 'resolved' | 'unresolved'>('all');
+  const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
+  const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
+  const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
+
   /* ── Search & Filter state ── */
   const [complaintSearch, setComplaintSearch] = useState('');
   const [complaintFilterStatus, setComplaintFilterStatus] = useState('ALL');
@@ -468,6 +476,7 @@ export default function ResidentDashboardPage({
   const [incidentSearch, setIncidentSearch] = useState('');
   const [incidentFilterStatus, setIncidentFilterStatus] = useState('ALL');
   const [incidentFilterCategory, setIncidentFilterCategory] = useState('ALL');
+  const [caseResolutionFilterMethod, setCaseResolutionFilterMethod] = useState('ALL');
 
   useEffect(() => {
     return () => {
@@ -559,6 +568,17 @@ export default function ResidentDashboardPage({
       });
     });
 
+    caseResolutionHearings.forEach((h) => {
+      const resolved = !!h.resolved_at;
+      items.push({
+        label: `${h.complaint_title}${h.case_number ? ` (${h.case_number})` : ''}`,
+        category: `Case Resolutions > ${resolved ? 'Resolved' : 'Unresolved'}`,
+        detail: [h.resolution_type, h.resolution_method].filter(Boolean).join(' · ') || undefined,
+        action: () => { setActiveView('case_resolutions'); setCaseResolutionFilter(resolved ? 'resolved' : 'unresolved'); },
+        keywords: [h.tracking_number ?? '', h.case_number ?? '', h.resolution_type ?? '', h.resolution_method ?? ''],
+      });
+    });
+
     return items;
   }, [complaints, hearings, incidents]);
 
@@ -621,6 +641,24 @@ export default function ResidentDashboardPage({
     }
     return list;
   }, [incidents, incidentFilterStatus, incidentFilterCategory, incidentSearch]);
+
+  const caseResolutionMethodOptions = useMemo(() => {
+    const methods = caseResolutionHearings.map(h => h.resolution_method).filter(Boolean) as string[];
+    return ['ALL', ...Array.from(new Set(methods)).sort()];
+  }, [caseResolutionHearings]);
+
+  const filteredCaseResolutions = useMemo(() => {
+    let data = caseResolutionHearings;
+    if (caseResolutionSearch) {
+      const q = caseResolutionSearch.toLowerCase();
+      data = data.filter(h =>
+        (h.case_number ?? h.tracking_number ?? '').toLowerCase().includes(q) ||
+        h.complaint_title.toLowerCase().includes(q)
+      );
+    }
+    if (caseResolutionFilterMethod !== 'ALL') data = data.filter(h => h.resolution_method === caseResolutionFilterMethod);
+    return data;
+  }, [caseResolutionHearings, caseResolutionSearch, caseResolutionFilterMethod]);
 
   useEffect(() => {
     let active = true;
@@ -711,14 +749,15 @@ export default function ResidentDashboardPage({
     let active = true;
     const preload = async () => {
       try {
-        const [complaintsRes, hearingsRes, incidentsRes] = await Promise.all([
+        const [complaintsRes, hearingsRes, incidentsRes, caseResRes] = await Promise.all([
           fetch('/api/complaints/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
           fetch(`/api/hearings/list.php?resident_id=${residentId}`),
           fetch('/api/incidents/list.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: residentId, status: 'ALL' }) }),
+          fetch(`/api/hearings/list.php?resident_id=${residentId}`),
         ]);
         if (!active) return;
-        const [complaintsData, hearingsData, incidentsData] = await Promise.all([
-          complaintsRes.json(), hearingsRes.json(), incidentsRes.json(),
+        const [complaintsData, hearingsData, incidentsData, caseResData] = await Promise.all([
+          complaintsRes.json(), hearingsRes.json(), incidentsRes.json(), caseResRes.json(),
         ]);
         if (!active) return;
         if (complaintsData.ok && Array.isArray(complaintsData.complaints) && complaints.length === 0) {
@@ -729,6 +768,9 @@ export default function ResidentDashboardPage({
         }
         if (incidentsData.ok && Array.isArray(incidentsData.incidents) && incidents.length === 0) {
           setIncidents(incidentsData.incidents);
+        }
+        if (caseResData.ok && Array.isArray(caseResData.hearings) && caseResolutionHearings.length === 0) {
+          setCaseResolutionHearings(caseResData.hearings);
         }
       } catch { /* ignore */ }
     };
@@ -920,6 +962,29 @@ export default function ResidentDashboardPage({
     void loadIncidents();
   }, [activeView, loadIncidents]);
 
+  const loadCaseResolutions = useCallback(async () => {
+    if (activeView !== 'case_resolutions') return;
+    setCaseResolutionLoading(true);
+    try {
+      const params = caseResolutionFilter !== 'all' ? `?resolution=${caseResolutionFilter}&resident_id=${residentId}` : `?resident_id=${residentId}`;
+      const res = await fetch(`/api/hearings/list.php${params}`);
+      const data = (await res.json()) as { ok?: boolean; hearings?: HearingRow[] };
+      if (res.ok && data.ok && Array.isArray(data.hearings)) {
+        setCaseResolutionHearings(data.hearings);
+      } else {
+        setCaseResolutionHearings([]);
+      }
+    } catch {
+      setCaseResolutionHearings([]);
+    } finally {
+      setCaseResolutionLoading(false);
+    }
+  }, [activeView, caseResolutionFilter, residentId]);
+
+  useEffect(() => {
+    void loadCaseResolutions();
+  }, [loadCaseResolutions]);
+
   const stats = useMemo(
     () => [
       {
@@ -975,7 +1040,9 @@ export default function ResidentDashboardPage({
               ? 'Incident Report'
               : activeView === 'my_incidents'
                 ? 'My Incident Reports'
-                : 'Profile Settings';
+                : activeView === 'case_resolutions'
+                  ? 'Case Resolutions'
+                  : 'Profile Settings';
 
   const selectedEvidenceUrl = selectedComplaint?.evidence_path
     ? `/${selectedComplaint.evidence_path}`
@@ -1064,6 +1131,12 @@ export default function ResidentDashboardPage({
               icon={<AlertCircle className="h-5 w-5" />}
               active={activeView === 'my_incidents'}
               onClick={() => setActiveView('my_incidents')}
+            />
+            <SidebarItem
+              label="Case Resolutions"
+              icon={<FileCheck className="h-5 w-5" />}
+              active={activeView === 'case_resolutions'}
+              onClick={() => setActiveView('case_resolutions')}
             />
           </nav>
 
@@ -2380,6 +2453,121 @@ export default function ResidentDashboardPage({
                     </table>
                   </div>
                 )}
+              </div>
+            ) : activeView === 'case_resolutions' ? (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {caseResolutionFilter === 'resolved' ? 'Resolved Cases' : caseResolutionFilter === 'unresolved' ? 'Unresolved Cases' : 'Case Resolutions'}
+                    </h1>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Home <span className="text-gray-400">/</span> Case Resolutions
+                      {caseResolutionFilter !== 'all' ? (
+                        <>
+                          <span className="text-gray-400"> / </span>
+                          {caseResolutionFilter === 'resolved' ? 'Resolved' : 'Unresolved'}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(['all', 'resolved', 'unresolved'] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setCaseResolutionFilter(f)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                          caseResolutionFilter === f
+                            ? 'bg-brand text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {f === 'all' ? 'All' : f === 'resolved' ? 'Resolved' : 'Unresolved'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-gray-50/60 border-b border-gray-200">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by case #, complaint…"
+                        value={caseResolutionSearch}
+                        onChange={(e) => setCaseResolutionSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                      />
+                    </div>
+                    <select
+                      value={caseResolutionFilterMethod}
+                      onChange={(e) => setCaseResolutionFilterMethod(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                    >
+                      {caseResolutionMethodOptions.map((m) => (
+                        <option key={m} value={m}>{m === 'ALL' ? 'All Methods' : m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {caseResolutionLoading ? (
+                    <div className="flex items-center justify-center py-16 text-gray-400">Loading cases...</div>
+                  ) : filteredCaseResolutions.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-gray-500">
+                      {caseResolutionSearch || caseResolutionFilterMethod !== 'ALL'
+                        ? 'No matching cases found.'
+                        : caseResolutionFilter === 'resolved' ? 'No resolved cases found.' : caseResolutionFilter === 'unresolved' ? 'No unresolved cases found.' : 'No cases found.'}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[900px] text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50">
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Case #</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Complaint</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Type</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Hearing Date</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Resolution</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Method</th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-600">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {filteredCaseResolutions.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="px-5 py-3 font-semibold text-gray-900">{row.case_number ?? row.tracking_number ?? '-'}</td>
+                              <td className="px-5 py-3">
+                                <div className="font-semibold text-gray-900">{row.complaint_title}</div>
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.complaint_type}</td>
+                              <td className="px-5 py-3 text-gray-700">{formatHearingDate(row.scheduled_date)}</td>
+                              <td className="px-5 py-3">
+                                {row.resolution_type ? (
+                                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    row.resolution_type === 'SETTLED' ? 'bg-emerald-100 text-emerald-700'
+                                    : row.resolution_type === 'DISMISSED' ? 'bg-red-100 text-red-700'
+                                    : row.resolution_type === 'WITHDRAWN' ? 'bg-gray-100 text-gray-600'
+                                    : row.resolution_type === 'PENDING' ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {row.resolution_type}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">UNRESOLVED</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-gray-700">{row.resolution_method ?? '-'}</td>
+                              <td className="px-5 py-3">
+                                <StatusBadge status={row.status} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
