@@ -1293,7 +1293,11 @@ export default function SecretaryDashboardPage({
 
               <NavSearch items={navItems} />
 
-              <NotificationBell userId={secretaryId} userRole="secretary" />
+              <NotificationBell 
+                userId={secretaryId} 
+                userRole="secretary" 
+                onNavigate={(view) => setActiveView(view as typeof activeView)}
+              />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

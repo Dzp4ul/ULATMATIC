@@ -1083,7 +1083,11 @@ export default function ResidentDashboardPage({
               <NavSearch items={navItems} />
 
               <div className="ml-auto flex items-center gap-3">
-                <NotificationBell userId={residentId} userRole="resident" />
+                <NotificationBell 
+                  userId={residentId} 
+                  userRole="resident" 
+                  onNavigate={(view) => setActiveView(view as typeof activeView)}
+                />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

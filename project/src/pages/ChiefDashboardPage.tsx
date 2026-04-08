@@ -630,7 +630,11 @@ export default function ChiefDashboardPage({
 
               <NavSearch items={navItems} />
 
-              <NotificationBell userId={chiefId} userRole="chief" />
+              <NotificationBell 
+                userId={chiefId} 
+                userRole="chief" 
+                onNavigate={(view) => setActiveView(view as typeof activeView)}
+              />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

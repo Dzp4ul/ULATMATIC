@@ -14,6 +14,7 @@ export type Notification = {
 interface NotificationBellProps {
   userId: number;
   userRole: 'resident' | 'secretary' | 'captain' | 'chief' | 'pio';
+  onNavigate?: (view: string) => void;
 }
 
 const API_BASE = '/api/notifications';
@@ -41,7 +42,37 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-export function NotificationBell({ userId, userRole }: NotificationBellProps) {
+function getNavigationView(type: string, userRole: string): string | null {
+  if (userRole === 'resident') {
+    switch (type) {
+      case 'complaint':
+        return 'my_complaints';
+      case 'incident':
+        return 'my_incidents';
+      case 'hearing':
+        return 'hearing_schedules';
+      case 'resident':
+        return 'profile';
+      default:
+        return 'dashboard';
+    }
+  }
+  // For other roles (secretary, captain, chief, pio)
+  switch (type) {
+    case 'complaint':
+      return 'complaints';
+    case 'incident':
+      return 'incidents';
+    case 'hearing':
+      return 'hearings';
+    case 'resident':
+      return 'residents';
+    default:
+      return 'dashboard';
+  }
+}
+
+export function NotificationBell({ userId, userRole, onNavigate }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -91,6 +122,17 @@ export function NotificationBell({ userId, userRole }: NotificationBellProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const handleNotificationClick = (notif: Notification) => {
+    if (!notif.is_read) markRead(notif.id);
+    if (onNavigate) {
+      const view = getNavigationView(notif.type, userRole);
+      if (view) {
+        setOpen(false);
+        onNavigate(view);
+      }
+    }
+  };
 
   const markRead = async (notifId: number) => {
     try {
@@ -191,9 +233,7 @@ export function NotificationBell({ userId, userRole }: NotificationBellProps) {
                 <button
                   key={notif.id}
                   type="button"
-                  onClick={() => {
-                    if (!notif.is_read) markRead(notif.id);
-                  }}
+                  onClick={() => handleNotificationClick(notif)}
                   className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
                     !notif.is_read ? 'bg-blue-50/50' : ''
                   }`}

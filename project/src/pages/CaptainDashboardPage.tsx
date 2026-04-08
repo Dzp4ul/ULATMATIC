@@ -1246,7 +1246,11 @@ export default function CaptainDashboardPage({
 
               <NavSearch items={navItems} />
 
-              <NotificationBell userId={captainId} userRole="captain" />
+              <NotificationBell 
+                userId={captainId} 
+                userRole="captain" 
+                onNavigate={(view) => setActiveView(view as typeof activeView)}
+              />
 
               <div className="relative" ref={profileMenuRef}>
                 <button

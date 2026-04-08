@@ -600,7 +600,11 @@ export default function PioDashboardPage({
 
               <NavSearch items={navItems} />
 
-              <NotificationBell userId={pioId} userRole="pio" />
+              <NotificationBell 
+                userId={pioId} 
+                userRole="pio" 
+                onNavigate={(view) => setActiveView(view as typeof activeView)}
+              />
 
               <div className="relative" ref={profileMenuRef}>
                 <button
