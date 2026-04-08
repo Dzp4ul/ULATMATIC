@@ -1062,8 +1062,6 @@ export default function ResidentDashboardPage({
               active={activeView === 'my_incidents'}
               onClick={() => setActiveView('my_incidents')}
             />
-            <SidebarItem
-            />
           </nav>
 
         </aside>

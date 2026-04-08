@@ -20,6 +20,7 @@ import { NotificationBell } from '../components/NotificationBell';
 import { Pagination, paginate } from '../components/Pagination';
 import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
 import { recordIncidentView } from '../utils/incident-tracking';
+import { useRealtime } from '../utils/useRealtime';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type IncidentStatus = 'ACTIVE' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
@@ -144,6 +145,7 @@ export default function ChiefDashboardPage({
   const [incidentMonthlyData, setIncidentMonthlyData] = useState<IncidentMonthlyDatum[]>([]);
   const [summary, setSummary] = useState({ pending: 0, resolved: 0, transferred: 0 });
   const [incidentsPage, setIncidentsPage] = useState(1);
+  const { updates } = useRealtime('chief', chiefId);
   const navItems = useMemo<NavItem[]>(() => {
     return incidents.map((inc) => ({
       label: `${inc.incident_type}${inc.tracking_number ? ` (${inc.tracking_number})` : ''}`,
@@ -183,6 +185,28 @@ export default function ChiefDashboardPage({
       setDashboardChartLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (updates.length > 0) {
+      void loadSummary();
+      if (activeView === 'incidents') {
+        const loadIncidents = async () => {
+          try {
+            const res = await fetch('/api/incidents/list.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: incidentStatus, all: true }),
+            });
+            const data = await res.json();
+            if (data.ok && Array.isArray(data.incidents)) {
+              setIncidents(data.incidents.map((r: any) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
+            }
+          } catch { /* ignore */ }
+        };
+        void loadIncidents();
+      }
+    }
+  }, [updates, activeView, incidentStatus]);
 
   useEffect(() => {
     let active = true;

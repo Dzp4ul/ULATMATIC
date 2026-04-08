@@ -1060,13 +1060,17 @@ export default function CaptainDashboardPage({
             <button
               type="button"
               onClick={() => setComplaintsOpen((v) => !v)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10"
+              className={
+                activeView === 'complaints' || activeView === 'complaint_detail'
+                  ? 'flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-brand'
+                  : 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10'
+              }
             >
-              <span className="text-white/80">
+              <span className={activeView === 'complaints' || activeView === 'complaint_detail' ? 'text-brand' : 'text-white/80'}>
                 <FileText className="h-5 w-5" />
               </span>
               <span className="flex-1">Complaints</span>
-              <span className="text-white/80">
+              <span className={activeView === 'complaints' || activeView === 'complaint_detail' ? 'text-brand' : 'text-white/80'}>
                 {complaintsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </span>
             </button>
@@ -1078,7 +1082,11 @@ export default function CaptainDashboardPage({
                     setActiveView('complaints');
                     setComplaintStatus('ALL');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'complaints' && complaintStatus === 'ALL'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Report Lists</span>
@@ -1089,7 +1097,11 @@ export default function CaptainDashboardPage({
                     setActiveView('complaints');
                     setComplaintStatus('PENDING');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'complaints' && complaintStatus === 'PENDING'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Pending Complaints</span>
@@ -1100,7 +1112,11 @@ export default function CaptainDashboardPage({
                     setActiveView('complaints');
                     setComplaintStatus('IN_PROGRESS');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'complaints' && complaintStatus === 'IN_PROGRESS'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Accepted Complaints</span>
@@ -1110,13 +1126,17 @@ export default function CaptainDashboardPage({
             <button
               type="button"
               onClick={() => setHearingSchedulesOpen((v) => !v)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10"
+              className={
+                activeView === 'hearings' || activeView === 'hearing_detail'
+                  ? 'flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-brand'
+                  : 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-50/90 hover:bg-white/10'
+              }
             >
-              <span className="text-white/80">
+              <span className={activeView === 'hearings' || activeView === 'hearing_detail' ? 'text-brand' : 'text-white/80'}>
                 <Calendar className="h-5 w-5" />
               </span>
               <span className="flex-1">Hearing Schedules</span>
-              <span className="text-white/80">
+              <span className={activeView === 'hearings' || activeView === 'hearing_detail' ? 'text-brand' : 'text-white/80'}>
                 {hearingSchedulesOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </span>
             </button>
@@ -1128,7 +1148,11 @@ export default function CaptainDashboardPage({
                     setActiveView('hearings');
                     setHearingStatus('PENDING');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'hearings' && hearingStatus === 'PENDING'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>Pending Hearing Schedules</span>
@@ -1148,7 +1172,9 @@ export default function CaptainDashboardPage({
                 <FolderCheck className="h-5 w-5" />
               </span>
               <span>Case Resolutions</span>
-              {caseResolutionsOpen ? <ChevronUp className="ml-auto h-4 w-4" /> : <ChevronDown className="ml-auto h-4 w-4" />}
+              <span className={activeView === 'case_resolutions' ? 'text-brand ml-auto' : 'text-white/80 ml-auto'}>
+                {caseResolutionsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
             </button>
             {caseResolutionsOpen ? (
               <div className="space-y-1 pl-9">
@@ -1158,7 +1184,11 @@ export default function CaptainDashboardPage({
                     setActiveView('case_resolutions');
                     setCaseResolutionFilter('all');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'case_resolutions' && caseResolutionFilter === 'all'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
                   <span>All Cases</span>
@@ -1169,7 +1199,11 @@ export default function CaptainDashboardPage({
                     setActiveView('case_resolutions');
                     setCaseResolutionFilter('resolved');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'case_resolutions' && caseResolutionFilter === 'resolved'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   <span>Resolved Cases</span>
@@ -1180,7 +1214,11 @@ export default function CaptainDashboardPage({
                     setActiveView('case_resolutions');
                     setCaseResolutionFilter('unresolved');
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  className={
+                    activeView === 'case_resolutions' && caseResolutionFilter === 'unresolved'
+                      ? "flex w-full items-center gap-3 rounded-lg bg-white/20 px-3 py-2 text-left text-sm font-semibold text-white"
+                      : "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10"
+                  }
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
                   <span>Unresolved Cases</span>
