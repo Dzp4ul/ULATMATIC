@@ -21,6 +21,7 @@ import { Pagination, paginate } from '../components/Pagination';
 import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
 import { recordIncidentView } from '../utils/incident-tracking';
 import { useRealtime } from '../utils/useRealtime';
+import { ConfirmModal } from '../components/ConfirmModal';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type IncidentStatus = 'ACTIVE' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
@@ -682,8 +683,10 @@ export default function ChiefDashboardPage({
                       <button
                         type="button"
                         onClick={() => {
-                          localStorage.removeItem('ulatmatic_chief');
-                          onNavigate('/');
+                          if (window.confirm('Are you sure you want to logout?')) {
+                            localStorage.removeItem('ulatmatic_chief');
+                            onNavigate('/');
+                          }
                         }}
                         className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >

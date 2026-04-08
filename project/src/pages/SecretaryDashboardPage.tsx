@@ -18,6 +18,7 @@ import { NotificationBell } from '../components/NotificationBell';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { Pagination, paginate } from '../components/Pagination';
 import { useRealtime } from '../utils/useRealtime';
+import { ConfirmModal } from '../components/ConfirmModal';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -288,6 +289,7 @@ export default function SecretaryDashboardPage({
   const [caseResolutionFilter, setCaseResolutionFilter] = useState<'all' | 'resolved' | 'unresolved'>('all');
   const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
   const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Search & filter state
   const [residentSearch, setResidentSearch] = useState('');
@@ -1343,10 +1345,7 @@ export default function SecretaryDashboardPage({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          localStorage.removeItem('ulatmatic_secretary');
-                          onNavigate('/signin');
-                        }}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >
                         <LogOut className="h-4 w-4" />
@@ -3013,6 +3012,18 @@ export default function SecretaryDashboardPage({
           </div>
         </div>
       ) : null}
+      <ConfirmModal
+        open={showLogoutConfirm}
+        title="Logout Confirmation"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          localStorage.removeItem('ulatmatic_secretary');
+          onNavigate('/signin');
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

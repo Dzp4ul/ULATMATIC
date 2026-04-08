@@ -653,8 +653,10 @@ export default function PioDashboardPage({
                       <button
                         type="button"
                         onClick={() => {
-                          localStorage.removeItem('ulatmatic_pio');
-                          onNavigate('/signin');
+                          if (window.confirm('Are you sure you want to logout?')) {
+                            localStorage.removeItem('ulatmatic_pio');
+                            onNavigate('/signin');
+                          }
                         }}
                         className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >

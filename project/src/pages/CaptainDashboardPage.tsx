@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NotificationBell } from '../components/NotificationBell';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { Pagination, paginate } from '../components/Pagination';
+import { ConfirmModal } from '../components/ConfirmModal';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -283,6 +284,7 @@ export default function CaptainDashboardPage({
   const [caseResolutionFilter, setCaseResolutionFilter] = useState<'all' | 'resolved' | 'unresolved'>('all');
   const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
   const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Search & filter state
   const [residentSearch, setResidentSearch] = useState('');
@@ -1296,10 +1298,7 @@ export default function CaptainDashboardPage({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          localStorage.removeItem('ulatmatic_captain');
-                          onNavigate('/signin');
-                        }}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >
                         <LogOut className="h-4 w-4" />
@@ -2938,6 +2937,18 @@ export default function CaptainDashboardPage({
           </div>
         </div>
       ) : null}
+      <ConfirmModal
+        open={showLogoutConfirm}
+        title="Logout Confirmation"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          localStorage.removeItem('ulatmatic_captain');
+          onNavigate('/signin');
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

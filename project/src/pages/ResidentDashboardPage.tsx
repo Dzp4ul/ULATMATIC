@@ -18,6 +18,7 @@ import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png
 import { FileDropzone } from '../components/FileDropzone';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 type ComplaintRow = {
   id: number;
@@ -454,6 +455,7 @@ export default function ResidentDashboardPage({
   const [incidentTrackingNumber, setIncidentTrackingNumber] = useState<string | null>(null);
   const [incidentTrackingCopied, setIncidentTrackingCopied] = useState(false);
   const incidentTrackingCopyTimeoutRef = useRef<number | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   /* ── Search & Filter state ── */
   const [complaintSearch, setComplaintSearch] = useState('');
@@ -1133,10 +1135,7 @@ export default function ResidentDashboardPage({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          localStorage.removeItem('ulatmatic_resident');
-                          onNavigate('/signin');
-                        }}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50"
                       >
                         <LogOut className="h-4 w-4" />
@@ -2760,6 +2759,19 @@ export default function ResidentDashboardPage({
           </div>
         </div>
       ) : null}
+
+      <ConfirmModal
+        open={showLogoutConfirm}
+        title="Logout Confirmation"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          localStorage.removeItem('ulatmatic_resident');
+          onNavigate('/signin');
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }
