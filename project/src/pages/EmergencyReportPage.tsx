@@ -197,7 +197,13 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
     const errors: { name?: string; contactNumber?: string; sitio?: string; picture?: string } = {};
 
     if (!name.trim()) errors.name = 'Name is required';
-    if (!contactNumber.trim()) errors.contactNumber = 'Contact number is required';
+    if (!contactNumber.trim()) {
+      errors.contactNumber = 'Contact number is required';
+    } else if (!contactNumber.startsWith('09')) {
+      errors.contactNumber = 'Contact number must start with 09';
+    } else if (contactNumber.length !== 11) {
+      errors.contactNumber = 'Contact number must be 11 digits';
+    }
     if (!sitio) errors.sitio = 'Sitio is required';
     if (!picture) errors.picture = 'Picture is required';
 
@@ -673,8 +679,14 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
                 <input
                   type="tel"
                   value={contactNumber}
-                  onChange={(e) => setContactNumber(e.target.value)}
-                  placeholder="09XX-XXX-XXXX"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                      setContactNumber(value);
+                    }
+                  }}
+                  placeholder="09XXXXXXXXX"
+                  maxLength={11}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-all"
                 />
                 {fieldErrors.contactNumber && (

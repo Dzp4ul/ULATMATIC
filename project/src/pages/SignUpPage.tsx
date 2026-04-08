@@ -795,9 +795,13 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
             <div className="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Verify your email</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{otpVerified ? 'Email Verified' : 'Verify your email'}</h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Enter the 6-digit code sent to <span className="font-semibold">{email}</span>.
+                    {otpVerified ? (
+                      <span>Your email has been successfully verified.</span>
+                    ) : (
+                      <span>Enter the 6-digit code sent to <span className="font-semibold">{email}</span>.</span>
+                    )}
                   </p>
                 </div>
                 <button
@@ -812,21 +816,80 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                 </button>
               </div>
 
-              <div className="mt-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    {otpExpired ? (
-                      <span className="text-red-600 font-semibold">Code expired</span>
-                    ) : (
-                      <span>
-                        Expires in <span className="font-semibold">{formatSeconds(expiresInSeconds)}</span>
-                      </span>
-                    )}
+              {!otpVerified ? (
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      {otpExpired ? (
+                        <span className="text-red-600 font-semibold">Code expired</span>
+                      ) : (
+                        <span>
+                          Expires in <span className="font-semibold">{formatSeconds(expiresInSeconds)}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={submitting || resendInSeconds > 0}
+                      onClick={async () => {
+                        if (submitting) return;
+                        setError(null);
+                        setErrorField(null);
+                        setOtpNotice(null);
+                        setSubmitting(true);
+                        try {
+                          const res = await fetch('/api/shared/send_otp.php', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ email }),
+                          });
+
+                          const data = await parseApiPayload(res);
+                          if (!res.ok || !data.ok) {
+                            setFieldError('otp', data.error ?? `Failed to resend OTP (HTTP ${res.status})`);
+                            return;
+                          }
+
+                          setOtp('');
+                          setOtpSent(true);
+                          setOtpExpiresAt(Date.now() + 10 * 60 * 1000);
+                          setResendAvailableAt(Date.now() + 30 * 1000);
+                          setOtpNotice('A new code has been sent.');
+                        } catch {
+                          setFieldError('otp', 'Network error. Please try again.');
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="text-sm font-semibold text-brand hover:text-brand/90 disabled:text-gray-400"
+                    >
+                      {resendInSeconds > 0 ? `Resend (${resendInSeconds}s)` : 'Resend code'}
+                    </button>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">OTP</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
+                      placeholder="Enter 6-digit OTP"
+                    />
+                  </div>
+
+                  {otpNotice ? <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-brand">{otpNotice}</div> : null}
+                  {error && errorField === 'otp' ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
                   <button
                     type="button"
-                    disabled={submitting || resendInSeconds > 0}
+                    disabled={submitting || otp.trim().length !== 6 || otpExpired}
                     onClick={async () => {
                       if (submitting) return;
                       setError(null);
@@ -834,92 +897,51 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       setOtpNotice(null);
                       setSubmitting(true);
                       try {
-                        const res = await fetch('/api/shared/send_otp.php', {
+                        const res = await fetch('/api/shared/verify_otp.php', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
                           },
-                          body: JSON.stringify({ email }),
+                          body: JSON.stringify({ email, otp }),
                         });
 
                         const data = await parseApiPayload(res);
                         if (!res.ok || !data.ok) {
-                          setFieldError('otp', data.error ?? `Failed to resend OTP (HTTP ${res.status})`);
+                          setFieldError('otp', data.error ?? `OTP verification failed (HTTP ${res.status})`);
                           return;
                         }
 
-                        setOtp('');
-                        setOtpSent(true);
-                        setOtpExpiresAt(Date.now() + 10 * 60 * 1000);
-                        setResendAvailableAt(Date.now() + 30 * 1000);
-                        setOtpNotice('A new code has been sent.');
+                        setOtpVerified(true);
                       } catch {
                         setFieldError('otp', 'Network error. Please try again.');
                       } finally {
                         setSubmitting(false);
                       }
                     }}
-                    className="text-sm font-semibold text-brand hover:text-brand/90 disabled:text-gray-400"
+                    className="w-full bg-brand hover:bg-brand/90 disabled:bg-brand/60 text-white font-semibold py-3 rounded-lg shadow-sm transition-colors"
                   >
-                    {resendInSeconds > 0 ? `Resend (${resendInSeconds}s)` : 'Resend code'}
+                    Verify
                   </button>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">OTP</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
-                    placeholder="Enter 6-digit OTP"
-                  />
+              ) : (
+                <div className="mt-5">
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2 text-emerald-700">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="font-semibold">Email verified successfully!</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOtpModalOpen(false)}
+                    className="w-full mt-3 bg-brand hover:bg-brand/90 text-white font-semibold py-3 rounded-lg shadow-sm transition-colors"
+                  >
+                    Continue
+                  </button>
                 </div>
-
-                {otpNotice ? <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-brand">{otpNotice}</div> : null}
-                {error && errorField === 'otp' ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-
-                <button
-                  type="button"
-                  disabled={submitting || otp.trim().length !== 6 || otpExpired}
-                  onClick={async () => {
-                    if (submitting) return;
-                    setError(null);
-                    setErrorField(null);
-                    setOtpNotice(null);
-                    setSubmitting(true);
-                    try {
-                      const res = await fetch('/api/shared/verify_otp.php', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email, otp }),
-                      });
-
-                      const data = await parseApiPayload(res);
-                      if (!res.ok || !data.ok) {
-                        setFieldError('otp', data.error ?? `OTP verification failed (HTTP ${res.status})`);
-                        return;
-                      }
-
-                      setOtpVerified(true);
-                      setOtpModalOpen(false);
-                      setOtpNotice(null);
-                    } catch {
-                      setFieldError('otp', 'Network error. Please try again.');
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                  className="w-full bg-brand hover:bg-brand/90 disabled:bg-brand/60 text-white font-semibold py-3 rounded-lg shadow-sm transition-colors"
-                >
-                  Verify
-                </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
