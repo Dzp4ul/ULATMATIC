@@ -1,5 +1,5 @@
-import { useState, type RefObject } from 'react';
-import { FileUp } from 'lucide-react';
+import { useState, useRef, useEffect, type RefObject } from 'react';
+import { FileUp, Camera, X, RotateCcw } from 'lucide-react';
 import { compressImage } from '../utils/imageCompression';
 
 export function FileDropzone({
@@ -12,6 +12,7 @@ export function FileDropzone({
   onChange,
   onClear,
   maxSizeMB = 5,
+  enableCamera = false,
 }: {
   label: string;
   file: File | null;
@@ -22,18 +23,90 @@ export function FileDropzone({
   onChange: (file: File | null) => void;
   onClear: () => void;
   maxSizeMB?: number;
+  enableCamera?: boolean;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasPreview = Boolean(file || previewUrl);
   const displayName = file?.name ?? 'Current file';
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
+  const isImageAccept = accept.includes('image');
 
   const setFileToInput = (nextFile: File) => {
     if (!inputRef.current) return;
     const dt = new DataTransfer();
     dt.items.add(nextFile);
     inputRef.current.files = dt.files;
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((t) => t.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const startCamera = async (facing: 'user' | 'environment' = 'environment') => {
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch {
+      setError('Unable to access camera. Please allow camera permissions.');
+      setCameraOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (cameraOpen) {
+      startCamera(facingMode);
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraOpen, facingMode]);
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    
+    let quality = 0.9;
+    const maxSize = maxSizeMB * 1024 * 1024;
+    
+    const tryCompress = (q: number) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          if (blob.size > maxSize && q > 0.3) {
+            tryCompress(q - 0.1);
+          } else {
+            const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+            onChange(file);
+            setCameraOpen(false);
+            stopCamera();
+          }
+        }
+      }, 'image/jpeg', q);
+    };
+    
+    tryCompress(quality);
   };
 
   const validateAndSetFile = async (nextFile: File | null) => {
@@ -171,6 +244,77 @@ export function FileDropzone({
           {error}
         </div>
       )}
+      {enableCamera && isImageAccept && !hasPreview && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            setCameraOpen(true);
+          }}
+          className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/5 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10 transition-colors"
+        >
+          <Camera className="w-4 h-4" />
+          Take Photo with Camera
+        </button>
+      )}
+
+      {/* Camera Modal */}
+      {cameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              setCameraOpen(false);
+              stopCamera();
+            }}
+            aria-label="Close camera"
+          />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Take Photo</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setCameraOpen(false);
+                  stopCamera();
+                }}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="relative bg-black aspect-[4/3] overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex items-center justify-center gap-4 p-5">
+              <button
+                type="button"
+                onClick={() => setFacingMode((f) => (f === 'user' ? 'environment' : 'user'))}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Flip
+              </button>
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-brand/90 transition-colors shadow-sm"
+              >
+                <Camera className="w-5 h-5" />
+                Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

@@ -678,6 +678,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       setIdFrontFile(null);
                       if (idFrontInputRef.current) idFrontInputRef.current.value = '';
                     }}
+                    enableCamera={true}
                   />
                   <FileDropzone
                     label="Upload ID (back)"
@@ -692,6 +693,7 @@ export default function SignUpPage({ onNavigate }: { onNavigate: (to: string) =>
                       setIdBackFile(null);
                       if (idBackInputRef.current) idBackInputRef.current.value = '';
                     }}
+                    enableCamera={true}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">

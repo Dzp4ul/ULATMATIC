@@ -1430,6 +1430,7 @@ export default function ResidentDashboardPage({
                             setProfileFrontIdFile(null);
                             if (profileFrontIdInputRef.current) profileFrontIdInputRef.current.value = '';
                           }}
+                          enableCamera={true}
                         />
                         <FileDropzone
                           label="Back ID"
@@ -1443,6 +1444,7 @@ export default function ResidentDashboardPage({
                             setProfileBackIdFile(null);
                             if (profileBackIdInputRef.current) profileBackIdInputRef.current.value = '';
                           }}
+                          enableCamera={true}
                         />
                       </div>
                     ) : (

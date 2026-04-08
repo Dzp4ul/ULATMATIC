@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, AlertCircle, CheckCircle, Camera, RotateCcw } from 'lucide-react';
 
 const SITIOS = [
   'Ahunin',
@@ -39,7 +39,61 @@ export default function EmergencyIncidentModal({ isOpen, onClose }: { isOpen: bo
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((t) => t.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const startCamera = async (facing: 'user' | 'environment' = 'environment') => {
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch {
+      setError('Unable to access camera. Please allow camera permissions.');
+      setCameraOpen(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+        setPicture(file);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setPicturePreview(event.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+        setCameraOpen(false);
+        stopCamera();
+      }
+    }, 'image/jpeg', 0.9);
+  };
 
   const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -129,6 +183,7 @@ export default function EmergencyIncidentModal({ isOpen, onClose }: { isOpen: bo
     setError('');
     setSuccess(false);
     setTrackingNumber('');
+    stopCamera();
   };
 
   const handleClose = () => {
@@ -198,6 +253,17 @@ export default function EmergencyIncidentModal({ isOpen, onClose }: { isOpen: bo
                   onChange={handlePictureChange}
                   className="hidden"
                 />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCameraOpen(true);
+                  }}
+                  className="mt-3 w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/5 px-4 py-2.5 text-sm font-semibold text-brand hover:bg-brand/10 transition-colors"
+                >
+                  <Camera className="w-4 h-4" />
+                  Take Photo with Camera
+                </button>
               </div>
 
               {/* Name */}
@@ -270,6 +336,67 @@ export default function EmergencyIncidentModal({ isOpen, onClose }: { isOpen: bo
             </form>
           )}
         </div>
+
+        {/* Camera Modal */}
+        {cameraOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/60"
+              onClick={() => {
+                setCameraOpen(false);
+                stopCamera();
+              }}
+              aria-label="Close camera"
+            />
+            <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">Take Photo</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraOpen(false);
+                    stopCamera();
+                  }}
+                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="relative bg-black aspect-[4/3] overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex items-center justify-center gap-4 p-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFacingMode((f) => (f === 'user' ? 'environment' : 'user'));
+                    startCamera(facingMode === 'user' ? 'environment' : 'user');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Flip
+                </button>
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand text-white font-semibold hover:bg-brand/90 transition-colors shadow-sm"
+                >
+                  <Camera className="w-5 h-5" />
+                  Capture
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <canvas ref={canvasRef} className="hidden" />
       </div>
     </div>
   );
