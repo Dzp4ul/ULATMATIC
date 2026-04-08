@@ -255,6 +255,7 @@ export default function ResidentDashboardPage({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const profileFrontIdInputRef = useRef<HTMLInputElement>(null);
   const profileBackIdInputRef = useRef<HTMLInputElement>(null);
@@ -1281,13 +1282,15 @@ export default function ResidentDashboardPage({
                         ) : (
                           <User className="h-10 w-10 text-gray-400" />
                         )}
-                        <button
-                          type="button"
-                          onClick={() => profilePhotoInputRef.current?.click()}
-                          className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-lg"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </button>
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => profilePhotoInputRef.current?.click()}
+                            className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-lg"
+                          >
+                            <Camera className="h-4 w-4" />
+                          </button>
+                        )}
                         <input
                           ref={profilePhotoInputRef}
                           type="file"
@@ -1308,7 +1311,13 @@ export default function ResidentDashboardPage({
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div className="text-sm font-semibold text-gray-900">Personal Information</div>
-                        <span className="text-xs text-brand">Edit</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditMode(!isEditMode)}
+                          className="text-xs font-semibold text-brand hover:text-brand/80"
+                        >
+                          {isEditMode ? 'Cancel' : 'Edit'}
+                        </button>
                       </div>
                       <div className="mt-4 grid gap-4 md:grid-cols-3">
                         <div>
@@ -1316,8 +1325,8 @@ export default function ResidentDashboardPage({
                           <input
                             type="text"
                             value={profileFname}
-                            onChange={(e) => setProfileFname(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            disabled
+                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
                           />
                         </div>
                         <div>
@@ -1326,7 +1335,8 @@ export default function ResidentDashboardPage({
                             type="text"
                             value={profileMidname}
                             onChange={(e) => setProfileMidname(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            disabled={!isEditMode}
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           />
                         </div>
                         <div>
@@ -1334,8 +1344,8 @@ export default function ResidentDashboardPage({
                           <input
                             type="text"
                             value={profileLname}
-                            onChange={(e) => setProfileLname(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            disabled
+                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -1346,21 +1356,22 @@ export default function ResidentDashboardPage({
                           <input
                             type="email"
                             value={profileEmail}
-                            onChange={(e) => setProfileEmail(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            disabled
+                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
                           />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 mb-1">Phone Number</label>
-                          <div className="flex rounded-lg border border-gray-300 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand">
-                            <span className="inline-flex items-center rounded-l-lg border-r border-gray-200 bg-gray-50 px-3 text-xs font-semibold text-gray-500">
+                          <div className={`flex rounded-lg border border-gray-300 ${isEditMode ? 'focus-within:border-brand focus-within:ring-2 focus-within:ring-brand' : ''}`}>
+                            <span className={`inline-flex items-center rounded-l-lg border-r border-gray-200 px-3 text-xs font-semibold ${!isEditMode ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-500'}`}>
                               +63
                             </span>
                             <input
                               type="tel"
                               value={profilePhone}
-                              onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                              className="w-full rounded-r-lg px-3 py-2 text-sm focus:outline-none"
+                              onChange={(e) => setProfilePhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                              disabled={!isEditMode}
+                              className={`w-full rounded-r-lg px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:outline-none'}`}
                               placeholder="9XXXXXXXXX"
                             />
                           </div>
@@ -1373,7 +1384,8 @@ export default function ResidentDashboardPage({
                           <select
                             value={profileGender}
                             onChange={(e) => setProfileGender(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            disabled={!isEditMode}
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           >
                             <option value="">Select gender</option>
                             <option value="Male">Male</option>
@@ -1387,8 +1399,9 @@ export default function ResidentDashboardPage({
                             type="text"
                             value={profileSitio}
                             onChange={(e) => setProfileSitio(e.target.value)}
+                            disabled={!isEditMode}
                             placeholder="Enter your address"
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           />
                         </div>
                       </div>
@@ -1397,61 +1410,84 @@ export default function ResidentDashboardPage({
 
                   <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                     <div className="text-sm font-semibold text-gray-900">Identification</div>
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <FileDropzone
-                        label="Front ID"
-                        file={profileFrontIdFile}
-                        previewUrl={profileFrontIdDisplay}
-                        accept="image/*"
-                        required={false}
-                        inputRef={profileFrontIdInputRef}
-                        onChange={(file) => setProfileFrontIdFile(file)}
-                        onClear={() => {
-                          setProfileFrontIdFile(null);
-                          if (profileFrontIdInputRef.current) profileFrontIdInputRef.current.value = '';
-                        }}
-                      />
-                      <FileDropzone
-                        label="Back ID"
-                        file={profileBackIdFile}
-                        previewUrl={profileBackIdDisplay}
-                        accept="image/*"
-                        required={false}
-                        inputRef={profileBackIdInputRef}
-                        onChange={(file) => setProfileBackIdFile(file)}
-                        onClear={() => {
-                          setProfileBackIdFile(null);
-                          if (profileBackIdInputRef.current) profileBackIdInputRef.current.value = '';
-                        }}
-                      />
-                    </div>
+                    {isEditMode ? (
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <FileDropzone
+                          label="Front ID"
+                          file={profileFrontIdFile}
+                          previewUrl={profileFrontIdDisplay}
+                          accept="image/*"
+                          required={false}
+                          inputRef={profileFrontIdInputRef}
+                          onChange={(file) => setProfileFrontIdFile(file)}
+                          onClear={() => {
+                            setProfileFrontIdFile(null);
+                            if (profileFrontIdInputRef.current) profileFrontIdInputRef.current.value = '';
+                          }}
+                        />
+                        <FileDropzone
+                          label="Back ID"
+                          file={profileBackIdFile}
+                          previewUrl={profileBackIdDisplay}
+                          accept="image/*"
+                          required={false}
+                          inputRef={profileBackIdInputRef}
+                          onChange={(file) => setProfileBackIdFile(file)}
+                          onClear={() => {
+                            setProfileBackIdFile(null);
+                            if (profileBackIdInputRef.current) profileBackIdInputRef.current.value = '';
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-2">Front ID</label>
+                          {profileFrontIdUrl ? (
+                            <img src={profileFrontIdUrl} alt="Front ID" className="w-full rounded-lg border border-gray-200 object-contain" />
+                          ) : (
+                            <div className="flex h-40 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-500">No ID uploaded</div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-2">Back ID</label>
+                          {profileBackIdUrl ? (
+                            <img src={profileBackIdUrl} alt="Back ID" className="w-full rounded-lg border border-gray-200 object-contain" />
+                          ) : (
+                            <div className="flex h-40 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-500">No ID uploaded</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <div className="text-sm font-semibold text-gray-900">Account Settings</div>
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">New Password</label>
-                        <input
-                          type="password"
-                          value={profilePassword}
-                          onChange={(e) => setProfilePassword(e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                          placeholder="••••••••"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password</label>
-                        <input
-                          type="password"
-                          value={profileConfirmPassword}
-                          onChange={(e) => setProfileConfirmPassword(e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                          placeholder="••••••••"
-                        />
+                  {isEditMode && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <div className="text-sm font-semibold text-gray-900">Account Settings</div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">New Password</label>
+                          <input
+                            type="password"
+                            value={profilePassword}
+                            onChange={(e) => setProfilePassword(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            placeholder="••••••••"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password</label>
+                          <input
+                            type="password"
+                            value={profileConfirmPassword}
+                            onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            placeholder="••••••••"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {profileError ? (
                     <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1464,15 +1500,17 @@ export default function ResidentDashboardPage({
                     </div>
                   ) : null}
 
-                  <div className="flex items-center justify-end">
-                    <button
-                      type="submit"
-                      disabled={profileSaving}
-                      className="inline-flex items-center rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/70"
-                    >
-                      {profileSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
+                  {isEditMode && (
+                    <div className="flex items-center justify-end">
+                      <button
+                        type="submit"
+                        disabled={profileSaving}
+                        className="inline-flex items-center rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand/90 disabled:bg-brand/70"
+                      >
+                        {profileSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
                 </form>
               </div>
             ) : activeView === 'file_complaint' ? (
