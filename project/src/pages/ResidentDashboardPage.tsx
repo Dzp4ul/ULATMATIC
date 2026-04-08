@@ -920,43 +920,43 @@ export default function ResidentDashboardPage({
   const stats = useMemo(
     () => [
       {
-        title: 'Approved Complaints',
-        value: 0,
+        title: 'Total Complaints',
+        value: complaints.length,
         icon: <FileText className="h-5 w-5 text-blue-700" />,
         iconBgClassName: 'bg-blue-100',
       },
       {
         title: 'Pending Complaints',
-        value: 0,
+        value: complaints.filter(c => c.status.toUpperCase() === 'PENDING').length,
         icon: <FileText className="h-5 w-5 text-orange-700" />,
         iconBgClassName: 'bg-orange-100',
       },
       {
-        title: 'Cancelled Complaints',
-        value: 0,
+        title: 'In Progress Complaints',
+        value: complaints.filter(c => c.status.toUpperCase() === 'IN_PROGRESS').length,
         icon: <FileText className="h-5 w-5 text-emerald-700" />,
         iconBgClassName: 'bg-emerald-100',
       },
       {
-        title: 'Approved Hearing',
-        value: 0,
+        title: 'Total Hearings',
+        value: hearings.length,
         icon: <Calendar className="h-5 w-5 text-blue-700" />,
         iconBgClassName: 'bg-blue-100',
       },
       {
-        title: 'Pending Hearing',
-        value: 0,
+        title: 'Pending Hearings',
+        value: hearings.filter(h => h.status.toUpperCase() === 'PENDING').length,
         icon: <Calendar className="h-5 w-5 text-emerald-700" />,
         iconBgClassName: 'bg-emerald-100',
       },
       {
-        title: 'Cancelled Hearing',
-        value: 0,
+        title: 'Completed Hearings',
+        value: hearings.filter(h => h.status.toUpperCase() === 'COMPLETED').length,
         icon: <Calendar className="h-5 w-5 text-orange-700" />,
         iconBgClassName: 'bg-orange-100',
       },
     ],
-    []
+    [complaints, hearings]
   );
 
   const pageTitle =

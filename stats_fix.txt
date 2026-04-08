@@ -1,0 +1,41 @@
+  const stats = useMemo(
+    () => [
+      {
+        title: 'Approved Complaints',
+        value: complaints.filter(c => c.status.toUpperCase() === 'APPROVED').length,
+        icon: <FileText className="h-5 w-5 text-blue-700" />,
+        iconBgClassName: 'bg-blue-100',
+      },
+      {
+        title: 'Pending Complaints',
+        value: complaints.filter(c => c.status.toUpperCase() === 'PENDING').length,
+        icon: <FileText className="h-5 w-5 text-orange-700" />,
+        iconBgClassName: 'bg-orange-100',
+      },
+      {
+        title: 'Cancelled Complaints',
+        value: complaints.filter(c => c.status.toUpperCase() === 'CANCELLED').length,
+        icon: <FileText className="h-5 w-5 text-emerald-700" />,
+        iconBgClassName: 'bg-emerald-100',
+      },
+      {
+        title: 'Approved Hearing',
+        value: hearings.filter(h => h.status.toUpperCase() === 'APPROVED').length,
+        icon: <Calendar className="h-5 w-5 text-blue-700" />,
+        iconBgClassName: 'bg-blue-100',
+      },
+      {
+        title: 'Pending Hearing',
+        value: hearings.filter(h => h.status.toUpperCase() === 'PENDING').length,
+        icon: <Calendar className="h-5 w-5 text-emerald-700" />,
+        iconBgClassName: 'bg-emerald-100',
+      },
+      {
+        title: 'Cancelled Hearing',
+        value: hearings.filter(h => h.status.toUpperCase() === 'CANCELLED').length,
+        icon: <Calendar className="h-5 w-5 text-orange-700" />,
+        iconBgClassName: 'bg-orange-100',
+      },
+    ],
+    [complaints, hearings]
+  );
