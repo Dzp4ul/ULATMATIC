@@ -1324,8 +1324,9 @@ export default function ResidentDashboardPage({
                           <input
                             type="text"
                             value={profileFname}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
+                            onChange={(e) => setProfileFname(e.target.value)}
+                            disabled={!isEditMode}
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           />
                         </div>
                         <div>
@@ -1343,8 +1344,9 @@ export default function ResidentDashboardPage({
                           <input
                             type="text"
                             value={profileLname}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
+                            onChange={(e) => setProfileLname(e.target.value)}
+                            disabled={!isEditMode}
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           />
                         </div>
                       </div>
@@ -1355,8 +1357,9 @@ export default function ResidentDashboardPage({
                           <input
                             type="email"
                             value={profileEmail}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600 cursor-not-allowed"
+                            onChange={(e) => setProfileEmail(e.target.value)}
+                            disabled={!isEditMode}
+                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm ${!isEditMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-brand'}`}
                           />
                         </div>
                         <div>
