@@ -80,7 +80,11 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-$sql .= " ORDER BY h.scheduled_date ASC, h.scheduled_time ASC";
+$sql .= " ORDER BY
+    CASE WHEN CAST(h.scheduled_date AS CHAR) = '0000-00-00' THEN 1 ELSE 0 END ASC,
+    h.scheduled_date DESC,
+    h.scheduled_time DESC,
+    h.created_at DESC";
 
 if (!empty($params)) {
     $stmt = $conn->prepare($sql);
