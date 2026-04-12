@@ -40,6 +40,63 @@ type IncidentRow = {
   transferred_at?: string | null;
 };
 
+type IncidentViewCopy = {
+  title: string;
+  breadcrumb: string;
+  recordsTitle: string;
+  recordsDescription: string;
+  emptyText: string;
+};
+
+const INCIDENT_VIEW_COPY: Record<IncidentStatus, IncidentViewCopy> = {
+  ACTIVE: {
+    title: 'Incident Reports',
+    breadcrumb: 'Incident Reports & Records',
+    recordsTitle: 'Incident Records',
+    recordsDescription: 'Manage incidents and transfer unresolved cases to complaints.',
+    emptyText: 'No incidents found for this filter.',
+  },
+  PENDING: {
+    title: 'Incident Reports',
+    breadcrumb: 'Incident Reports & Records',
+    recordsTitle: 'Pending Records',
+    recordsDescription: 'Manage incidents waiting for action.',
+    emptyText: 'No pending incidents found.',
+  },
+  IN_PROGRESS: {
+    title: 'Incident Reports',
+    breadcrumb: 'Incident Reports & Records',
+    recordsTitle: 'In-progress Records',
+    recordsDescription: 'Manage incidents currently in progress.',
+    emptyText: 'No in-progress incidents found.',
+  },
+  RESOLVED: {
+    title: 'Resolved Reports',
+    breadcrumb: 'Resolved Reports & Records',
+    recordsTitle: 'Resolved Records',
+    recordsDescription: 'Review incident reports that have been marked resolved.',
+    emptyText: 'No resolved reports found.',
+  },
+  TRANSFERRED: {
+    title: 'Transferred Reports',
+    breadcrumb: 'Transferred Reports & Records',
+    recordsTitle: 'Transferred Records',
+    recordsDescription: 'Review incident reports transferred to complaints.',
+    emptyText: 'No transferred reports found.',
+  },
+  ALL: {
+    title: 'All Records',
+    breadcrumb: 'All Incident Records',
+    recordsTitle: 'All Records',
+    recordsDescription: 'View all incident reports across every status.',
+    emptyText: 'No incident records found.',
+  },
+};
+
+const getIncidentViewCopy = (status: string): IncidentViewCopy => (
+  INCIDENT_VIEW_COPY[status as IncidentStatus] ?? INCIDENT_VIEW_COPY.ACTIVE
+);
+
 function StatCard({
   title,
   value,
@@ -141,6 +198,7 @@ export default function PioDashboardPage({
   const [incidentMonthlyData, setIncidentMonthlyData] = useState<IncidentMonthlyDatum[]>([]);
   const [summary, setSummary] = useState({ pending: 0, resolved: 0, transferred: 0 });
   const [incidentsPage, setIncidentsPage] = useState(1);
+  const incidentViewCopy = getIncidentViewCopy(incidentStatus);
   const navItems = useMemo<NavItem[]>(() => {
     return incidents.map((inc) => ({
       label: `${inc.incident_type}${inc.tracking_number ? ` (${inc.tracking_number})` : ''}`,
@@ -839,9 +897,9 @@ export default function PioDashboardPage({
               <>
                 <div className="mb-5">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Incident Reports</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{incidentViewCopy.title}</h1>
                     <div className="mt-1 text-sm text-gray-500">
-                      Home <span className="text-gray-400">/</span> Incident Reports & Records
+                      Home <span className="text-gray-400">/</span> {incidentViewCopy.breadcrumb}
                     </div>
                   </div>
                 </div>
@@ -855,8 +913,8 @@ export default function PioDashboardPage({
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">Incident Records</div>
-                      <div className="text-xs text-gray-500">Manage incidents and transfer unresolved cases to complaints.</div>
+                      <div className="text-sm font-semibold text-gray-900">{incidentViewCopy.recordsTitle}</div>
+                      <div className="text-xs text-gray-500">{incidentViewCopy.recordsDescription}</div>
                     </div>
                     <div className="text-sm font-semibold text-gray-700">{incidents.length}</div>
                   </div>
@@ -864,7 +922,7 @@ export default function PioDashboardPage({
                   {incidentsLoading ? (
                     <div className="p-6 text-sm text-gray-600">Loading…</div>
                   ) : incidents.length === 0 ? (
-                    <div className="p-6 text-sm text-gray-600">No incidents found for this filter.</div>
+                    <div className="p-6 text-sm text-gray-600">{incidentViewCopy.emptyText}</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-left text-sm">
