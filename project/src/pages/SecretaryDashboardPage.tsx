@@ -81,7 +81,7 @@ type KpMonthData = {
   nature: { criminal: number; civil: number; others: number; total: number };
   settled: { mediation: number; conciliation: number; arbitration: number; total: number };
   unsettled: { repudiated: number; withdrawn: number; pending: number; dismissed: number; certified: number; referred: number; total: number };
-  savings: number;
+  savings: number | null;
 };
 
 function formatPhDate(dateStr: string | null | undefined): string {
@@ -2686,7 +2686,6 @@ export default function SecretaryDashboardPage({
                             const n = m?.nature ?? { criminal: 0, civil: 0, others: 0, total: 0 };
                             const s = m?.settled ?? { mediation: 0, conciliation: 0, arbitration: 0, total: 0 };
                             const u = m?.unsettled ?? { repudiated: 0, withdrawn: 0, pending: 0, dismissed: 0, certified: 0, referred: 0, total: 0 };
-                            const sv = m?.savings ?? 0;
                             return (
                               <tr key={label} className="hover:bg-gray-50">
                                 <td className="border border-gray-300 px-2 py-1.5 text-center font-semibold">{label}</td>
@@ -2705,9 +2704,7 @@ export default function SecretaryDashboardPage({
                                 <td className="border border-gray-300 px-2 py-1.5 text-center">{u.certified || '-'}</td>
                                 <td className="border border-gray-300 px-2 py-1.5 text-center">{u.referred || '-'}</td>
                                 <td className="border border-gray-300 px-2 py-1.5 text-center font-bold">{u.total || '-'}</td>
-                                <td className="border border-gray-300 px-2 py-1.5 text-right">
-                                  {sv > 0 ? `₱${sv.toLocaleString()}` : '-'}
-                                </td>
+                                <td className="border border-gray-300 px-2 py-1.5 text-right"></td>
                               </tr>
                             );
                           })}
@@ -2729,9 +2726,7 @@ export default function SecretaryDashboardPage({
                               <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.certified || '-'}</td>
                               <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.referred || '-'}</td>
                               <td className="border border-gray-300 px-2 py-2 text-center">{kpTotals.unsettled.total || '-'}</td>
-                              <td className="border border-gray-300 px-2 py-2 text-right">
-                                {kpTotals.savings > 0 ? `₱${kpTotals.savings.toLocaleString()}` : '-'}
-                              </td>
+                              <td className="border border-gray-300 px-2 py-2 text-right"></td>
                             </tr>
                           ) : null}
                         </tbody>
@@ -2739,7 +2734,6 @@ export default function SecretaryDashboardPage({
                     </div>
 
                     <div className="p-6 text-xs text-gray-500">
-                      <div className="italic">*Estimated Government Savings: ₱9,500.00 per settled case</div>
                       <div className="mt-6 grid gap-8 sm:grid-cols-2 text-sm text-gray-800">
                         <div>
                           <div className="text-xs text-gray-500 mb-1">Prepared by:</div>

@@ -28,7 +28,7 @@ api_ensure_complaint_schema($conn);
 //   - Nature of Dispute: Criminal, Civil, Others, Total
 //   - Settled: Mediation, Conciliation, Arbitration, Total
 //   - Unsettled: Repudiated, Withdrawn, Pending, Dismissed, Certified, Referred, Total
-//   - Estimated Government Savings: ₱9,500 × settled total
+//   - Estimated Government Savings: intentionally blank; no monetary amount is tracked
 
 $months = [];
 for ($m = 1; $m <= 12; $m++) {
@@ -36,7 +36,7 @@ for ($m = 1; $m <= 12; $m++) {
         'nature' => ['criminal' => 0, 'civil' => 0, 'others' => 0, 'total' => 0],
         'settled' => ['mediation' => 0, 'conciliation' => 0, 'arbitration' => 0, 'total' => 0],
         'unsettled' => ['repudiated' => 0, 'withdrawn' => 0, 'pending' => 0, 'dismissed' => 0, 'certified' => 0, 'referred' => 0, 'total' => 0],
-        'savings' => 0,
+        'savings' => null,
     ];
 }
 
@@ -97,10 +97,6 @@ while ($row = $result->fetch_assoc()) {
         $months[$month]['unsettled']['total']++;
     }
 
-    // Savings: ₱9,500 per settled case
-    if ($resType === 'SETTLED') {
-        $months[$month]['savings'] += 9500;
-    }
 }
 
 $stmt->close();
@@ -110,7 +106,7 @@ $totals = [
     'nature' => ['criminal' => 0, 'civil' => 0, 'others' => 0, 'total' => 0],
     'settled' => ['mediation' => 0, 'conciliation' => 0, 'arbitration' => 0, 'total' => 0],
     'unsettled' => ['repudiated' => 0, 'withdrawn' => 0, 'pending' => 0, 'dismissed' => 0, 'certified' => 0, 'referred' => 0, 'total' => 0],
-    'savings' => 0,
+    'savings' => null,
 ];
 
 foreach ($months as $data) {
@@ -119,7 +115,6 @@ foreach ($months as $data) {
             $totals[$section][$key] += $val;
         }
     }
-    $totals['savings'] += $data['savings'];
 }
 
 $conn->close();
