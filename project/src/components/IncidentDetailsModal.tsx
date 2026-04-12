@@ -1,3 +1,5 @@
+import { resolveAssetUrl } from '../utils/api';
+
 export type IncidentDetailsData = {
   id: number;
   tracking_number?: string | null;
@@ -40,9 +42,7 @@ export function IncidentDetailsModal({
     return null;
   }
 
-  const evidenceUrl = incident.evidence_path
-    ? `/${incident.evidence_path}`
-    : null;
+  const evidenceUrl = resolveAssetUrl(incident.evidence_path);
   const hasImageEvidence = Boolean(evidenceUrl && (incident.evidence_mime ?? '').startsWith('image/'));
 
   return (

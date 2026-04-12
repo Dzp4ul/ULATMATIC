@@ -43,7 +43,6 @@ interface IncidentData {
 }
 
 export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: string) => void }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [picture, setPicture] = useState<string>('');
@@ -124,22 +123,6 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
     pollIntervalRef.current = setInterval(() => {
       fetchIncidentData(tracking);
     }, 3000);
-  };
-
-  const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPicture(event.target?.result as string);
-        setError('');
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const startCamera = async () => {
@@ -272,17 +255,6 @@ export default function EmergencyReportPage({ onNavigate }: { onNavigate: (to: s
       setError('Error: ' + errorMsg);
       setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setPicture('');
-    setName('');
-    setContactNumber('');
-    setSitio('');
-    setDescription('');
-    setError('');
-    setSuccess(false);
-    setTrackingNumber('');
   };
 
   const startNewEmergencyReport = () => {

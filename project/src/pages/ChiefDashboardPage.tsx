@@ -21,6 +21,7 @@ import { Pagination, paginate } from '../components/Pagination';
 import { buildIncidentMonthlyData, type IncidentMonthlyDatum } from '../utils/incidentAnalytics';
 import { recordIncidentView } from '../utils/incident-tracking';
 import { useRealtime } from '../utils/useRealtime';
+import { resolveAssetUrl } from '../utils/api';
 import logo from '../../Logo/406613648_313509771513180_7654072355038554241_n.png';
 
 type IncidentStatus = 'ACTIVE' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'TRANSFERRED' | 'ALL';
@@ -435,7 +436,7 @@ export default function ChiefDashboardPage({
     ],
     [summary]
   );
-  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
+  const profilePhotoUrl = resolveAssetUrl(profilePhoto);
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
   const isIncidentActionable = (status: string): boolean => {
     const normalized = status.toUpperCase();
@@ -970,9 +971,7 @@ export default function ChiefDashboardPage({
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {paginate(incidents, incidentsPage).map((row) => {
-                            const evidenceUrl = row.evidence_path
-                              ? `/${row.evidence_path}`
-                              : null;
+                            const evidenceUrl = resolveAssetUrl(row.evidence_path);
                             return (
                               <tr key={row.id} className="hover:bg-gray-50">
                                 <td className="px-5 py-3 font-semibold text-gray-900">{row.tracking_number ?? '-'}</td>

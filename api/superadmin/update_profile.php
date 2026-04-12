@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
+require_once __DIR__ . '/../shared/storage.php';
 require_once __DIR__ . '/user_schema.php';
 
 api_apply_cors();
@@ -91,34 +92,18 @@ if (isset($_FILES['profile_photo']) && is_array($_FILES['profile_photo'])) {
             api_send_json(400, ['ok' => false, 'error' => 'Profile photo must be an image (jpg, png, webp, gif)']);
         }
 
-        $uploadsRoot = realpath(__DIR__ . '/../..');
-        if ($uploadsRoot === false) {
-            $conn->close();
-            api_send_json(500, ['ok' => false, 'error' => 'Server path error']);
-        }
-
         $uploadsRelDir = 'uploads/profiles/superadmin';
-        $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . 'superadmin';
-        if (!is_dir($uploadsAbsDir)) {
-            @mkdir($uploadsAbsDir, 0755, true);
-        }
-
-        if (!is_dir($uploadsAbsDir)) {
-            $conn->close();
-            api_send_json(500, ['ok' => false, 'error' => 'Failed to create uploads directory']);
-        }
-
         $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
         $ext = $ext !== '' ? $ext : 'jpg';
         $filename = 'profile_' . $id . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
-        $abs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $filename;
 
-        if (!move_uploaded_file($tmp, $abs)) {
+        $savedPath = api_storage_save_uploaded_file($tmp, $uploadsRelDir . '/' . $filename, $mime !== '' ? $mime : 'image/jpeg');
+        if ($savedPath === null) {
             $conn->close();
             api_send_json(500, ['ok' => false, 'error' => 'Failed to save profile photo']);
         }
 
-        $profilePath = $uploadsRelDir . '/' . $filename;
+        $profilePath = $savedPath;
     }
 }
 

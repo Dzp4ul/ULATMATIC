@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
+require_once __DIR__ . '/../shared/storage.php';
 require_once __DIR__ . '/schema.php';
 
 api_apply_cors();
@@ -92,27 +93,7 @@ if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
             ]);
         }
 
-        $uploadsRoot = realpath(__DIR__ . '/../..');
-        if ($uploadsRoot === false) {
-            api_send_json(500, [
-                'ok' => false,
-                'error' => 'Server path error',
-            ]);
-        }
-
         $uploadsRelDir = 'uploads/incidents';
-        $uploadsAbsDir = $uploadsRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'incidents';
-        if (!is_dir($uploadsAbsDir)) {
-            @mkdir($uploadsAbsDir, 0755, true);
-        }
-
-        if (!is_dir($uploadsAbsDir)) {
-            api_send_json(500, [
-                'ok' => false,
-                'error' => 'Failed to create uploads directory',
-            ]);
-        }
-
         $sanitize = static function (string $value): string {
             $value = strtolower(trim($value));
             $value = preg_replace('/[^a-z0-9_\-\.]+/i', '_', $value);
@@ -124,16 +105,16 @@ if (isset($_FILES['evidence']) && is_array($_FILES['evidence'])) {
 
         $tag = 'rid' . $residentId . '_' . bin2hex(random_bytes(6));
         $filename = $sanitize('evidence_' . $tag) . '.' . $ext;
-        $abs = $uploadsAbsDir . DIRECTORY_SEPARATOR . $filename;
-
-        if (!move_uploaded_file($tmp, $abs)) {
+        $storageKey = $uploadsRelDir . '/' . $filename;
+        $savedPath = api_storage_save_uploaded_file($tmp, $storageKey, $mime !== '' ? $mime : 'application/octet-stream');
+        if ($savedPath === null) {
             api_send_json(500, [
                 'ok' => false,
                 'error' => 'Failed to save evidence file',
             ]);
         }
 
-        $evidencePath = $uploadsRelDir . '/' . $filename;
+        $evidencePath = $savedPath;
         $evidenceMime = $mime !== '' ? $mime : null;
     }
 }

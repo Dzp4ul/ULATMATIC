@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/../shared/image_compression.php';
+require_once __DIR__ . '/../shared/storage.php';
 require_once __DIR__ . '/user_schema.php';
 
 api_apply_cors();
@@ -218,9 +219,25 @@ if (!$frontCompressed || !$backCompressed || !$selfieCompressed) {
     ]);
 }
 
-$frontPath = $uploadsRelDir . '/' . $frontFilename;
-$backPath = $uploadsRelDir . '/' . $backFilename;
-$selfiePath = $uploadsRelDir . '/' . $selfieFilename;
+$frontPath = api_storage_save_file($frontAbs, $uploadsRelDir . '/' . $frontFilename, (string)($front['type'] ?? 'image/jpeg'));
+$backPath = api_storage_save_file($backAbs, $uploadsRelDir . '/' . $backFilename, (string)($back['type'] ?? 'image/jpeg'));
+$selfiePath = api_storage_save_file($selfieAbs, $uploadsRelDir . '/' . $selfieFilename, (string)($selfie['type'] ?? 'image/jpeg'));
+
+if ($frontPath === null || $backPath === null || $selfiePath === null) {
+    @unlink($frontAbs);
+    @unlink($backAbs);
+    @unlink($selfieAbs);
+    api_send_json(500, [
+        'ok' => false,
+        'error' => 'Failed to save uploaded files to storage',
+    ]);
+}
+
+if (api_storage_is_spaces_enabled()) {
+    @unlink($frontAbs);
+    @unlink($backAbs);
+    @unlink($selfieAbs);
+}
 
 $conn = api_db();
 api_ensure_resident_user_schema($conn);

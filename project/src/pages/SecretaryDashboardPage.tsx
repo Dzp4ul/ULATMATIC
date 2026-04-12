@@ -19,6 +19,7 @@ import { NavSearch, type NavItem } from '../components/NavSearch';
 import { Pagination, paginate } from '../components/Pagination';
 import { useRealtime } from '../utils/useRealtime';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { resolveAssetUrl } from '../utils/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell,
@@ -1036,15 +1037,13 @@ export default function SecretaryDashboardPage({
     [dashboardStats]
   );
 
-  const selectedEvidenceUrl = selectedComplaint?.evidence_path
-    ? `/${selectedComplaint.evidence_path}`
-    : null;
+  const selectedEvidenceUrl = resolveAssetUrl(selectedComplaint?.evidence_path);
   const selectedEvidenceIsVideo = Boolean(
     selectedComplaint?.evidence_mime
       ? selectedComplaint.evidence_mime.startsWith('video/')
       : selectedComplaint?.evidence_path?.match(/\.(mp4|webm|mov)$/i)
   );
-  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
+  const profilePhotoUrl = resolveAssetUrl(profilePhoto);
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
 
   return (
@@ -1719,8 +1718,8 @@ export default function SecretaryDashboardPage({
                           <tbody className="divide-y divide-gray-200">
                             {pagedResidents.map((r) => {
                               const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
-                              const frontUrl = `/${r.front_id}`;
-                              const backUrl = `/${r.back_id}`;
+                              const frontUrl = resolveAssetUrl(r.front_id);
+                              const backUrl = resolveAssetUrl(r.back_id);
                               return (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                   <td className="px-5 py-3 font-semibold text-gray-900">{fullName}</td>
@@ -1730,14 +1729,14 @@ export default function SecretaryDashboardPage({
                                     <div className="flex items-center gap-3">
                                       <button
                                         type="button"
-                                        onClick={() => setIdPreview({ url: frontUrl, label: 'Front ID' })}
+                                        onClick={() => frontUrl && setIdPreview({ url: frontUrl, label: 'Front ID' })}
                                         className="text-brand hover:text-brand/90 font-semibold"
                                       >
                                         Front
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => setIdPreview({ url: backUrl, label: 'Back ID' })}
+                                        onClick={() => backUrl && setIdPreview({ url: backUrl, label: 'Back ID' })}
                                         className="text-brand hover:text-brand/90 font-semibold"
                                       >
                                         Back
@@ -1836,8 +1835,8 @@ export default function SecretaryDashboardPage({
                         <tbody className="divide-y divide-gray-200">
                           {pagedApprovedResidents.map((r) => {
                             const fullName = `${r.fname} ${r.midname ?? ''} ${r.lname ?? ''}`.replace(/\s+/g, ' ').trim();
-                            const frontUrl = `/${r.front_id}`;
-                            const backUrl = `/${r.back_id}`;
+                            const frontUrl = resolveAssetUrl(r.front_id);
+                            const backUrl = resolveAssetUrl(r.back_id);
                             return (
                               <tr key={r.id} className="hover:bg-gray-50">
                                 <td className="px-5 py-3 font-semibold text-gray-900">{fullName}</td>
@@ -1847,14 +1846,14 @@ export default function SecretaryDashboardPage({
                                   <div className="flex items-center gap-3">
                                     <button
                                       type="button"
-                                      onClick={() => setIdPreview({ url: frontUrl, label: 'Front ID' })}
+                                      onClick={() => frontUrl && setIdPreview({ url: frontUrl, label: 'Front ID' })}
                                       className="text-brand hover:text-brand/90 font-semibold"
                                     >
                                       Front
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => setIdPreview({ url: backUrl, label: 'Back ID' })}
+                                      onClick={() => backUrl && setIdPreview({ url: backUrl, label: 'Back ID' })}
                                       className="text-brand hover:text-brand/90 font-semibold"
                                     >
                                       Back

@@ -17,9 +17,9 @@ function api_ensure_resident_user_schema(mysqli $conn): void
             . "  gender VARCHAR(20) NOT NULL,\n"
             . "  sitio VARCHAR(255) NOT NULL,\n"
             . "  user_pass VARCHAR(255) NOT NULL,\n"
-            . "  front_id VARCHAR(255) NOT NULL,\n"
-            . "  back_id VARCHAR(255) NOT NULL,\n"
-            . "  profile_photo VARCHAR(255) NULL\n"
+            . "  front_id VARCHAR(512) NOT NULL,\n"
+            . "  back_id VARCHAR(512) NOT NULL,\n"
+            . "  profile_photo VARCHAR(512) NULL\n"
             . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
@@ -97,7 +97,7 @@ function api_ensure_resident_user_schema(mysqli $conn): void
     }
 
     if ($needsProfilePhoto) {
-        $conn->query("ALTER TABLE resident_user ADD COLUMN profile_photo VARCHAR(255) NULL");
+        $conn->query("ALTER TABLE resident_user ADD COLUMN profile_photo VARCHAR(512) NULL");
     }
 
     $needsSelfiePhoto = false;
@@ -108,7 +108,7 @@ function api_ensure_resident_user_schema(mysqli $conn): void
     }
 
     if ($needsSelfiePhoto) {
-        $conn->query("ALTER TABLE resident_user ADD COLUMN selfie_photo VARCHAR(255) NULL AFTER back_id");
+        $conn->query("ALTER TABLE resident_user ADD COLUMN selfie_photo VARCHAR(512) NULL AFTER back_id");
     }
 
     $needsSuffix = false;
@@ -121,4 +121,21 @@ function api_ensure_resident_user_schema(mysqli $conn): void
     if ($needsSuffix) {
         $conn->query("ALTER TABLE resident_user ADD COLUMN suffix VARCHAR(20) NULL AFTER lname");
     }
+
+    $ensurePathColumn = static function (string $column, string $definition) use ($conn): void {
+        $safeColumn = $conn->real_escape_string($column);
+        $res = $conn->query("SHOW COLUMNS FROM resident_user LIKE '{$safeColumn}'");
+        if ($res) {
+            $col = $res->fetch_assoc();
+            if ($col && stripos((string)($col['Type'] ?? ''), 'varchar(512)') === false) {
+                $conn->query("ALTER TABLE resident_user MODIFY COLUMN {$column} {$definition}");
+            }
+            $res->free();
+        }
+    };
+
+    $ensurePathColumn('front_id', 'VARCHAR(512) NOT NULL');
+    $ensurePathColumn('back_id', 'VARCHAR(512) NOT NULL');
+    $ensurePathColumn('profile_photo', 'VARCHAR(512) NULL');
+    $ensurePathColumn('selfie_photo', 'VARCHAR(512) NULL');
 }

@@ -19,7 +19,7 @@ function api_ensure_complaint_schema(mysqli $conn): void
         respondent_address VARCHAR(255) NULL,
         description TEXT NOT NULL,
         witness VARCHAR(500) NULL,
-        evidence_path VARCHAR(255) NULL,
+        evidence_path VARCHAR(512) NULL,
         evidence_mime VARCHAR(120) NULL,
         status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -28,6 +28,15 @@ function api_ensure_complaint_schema(mysqli $conn): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     $conn->query($sql);
+
+    $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'evidence_path'");
+    if ($res) {
+        $col = $res->fetch_assoc();
+        if ($col && stripos((string)($col['Type'] ?? ''), 'varchar(512)') === false) {
+            $conn->query("ALTER TABLE complaints MODIFY COLUMN evidence_path VARCHAR(512) NULL");
+        }
+        $res->free();
+    }
 
     $needsTrackingNumber = false;
     $res = $conn->query("SHOW COLUMNS FROM complaints LIKE 'tracking_number'");

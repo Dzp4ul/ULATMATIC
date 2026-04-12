@@ -20,6 +20,7 @@ import { FileDropzone } from '../components/FileDropzone';
 import { NavSearch, type NavItem } from '../components/NavSearch';
 import { NotificationBell } from '../components/NotificationBell';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { resolveAssetUrl } from '../utils/api';
 
 type ComplaintRow = {
   id: number;
@@ -71,6 +72,9 @@ type HearingRow = {
   complaint_title: string;
   complaint_type: string;
   created_at?: string | null;
+  resolved_at?: string | null;
+  resolution_type?: string | null;
+  resolution_method?: string | null;
 };
 
 function formatHearingDate(dateStr: string | null | undefined): string {
@@ -1044,18 +1048,16 @@ export default function ResidentDashboardPage({
                   ? 'Case Resolutions'
                   : 'Profile Settings';
 
-  const selectedEvidenceUrl = selectedComplaint?.evidence_path
-    ? `/${selectedComplaint.evidence_path}`
-    : null;
+  const selectedEvidenceUrl = resolveAssetUrl(selectedComplaint?.evidence_path);
   const selectedEvidenceIsVideo = Boolean(
     selectedComplaint?.evidence_mime
       ? selectedComplaint.evidence_mime.startsWith('video/')
       : selectedComplaint?.evidence_path?.match(/\.(mp4|webm|mov)$/i)
   );
-  const profilePhotoUrl = profilePhoto ? `/${profilePhoto}` : null;
+  const profilePhotoUrl = resolveAssetUrl(profilePhoto);
   const profilePreviewUrl = profilePhotoPreview ?? profilePhotoUrl;
-  const profileFrontIdUrl = profileFrontId ? `/${profileFrontId}` : null;
-  const profileBackIdUrl = profileBackId ? `/${profileBackId}` : null;
+  const profileFrontIdUrl = resolveAssetUrl(profileFrontId);
+  const profileBackIdUrl = resolveAssetUrl(profileBackId);
   const profileFrontIdDisplay = profileFrontIdPreview ?? profileFrontIdUrl;
   const profileBackIdDisplay = profileBackIdPreview ?? profileBackIdUrl;
 
@@ -2829,9 +2831,7 @@ export default function ResidentDashboardPage({
 
       {/* Incident detail modal */}
       {selectedIncident ? (() => {
-        const incEvidenceUrl = selectedIncident.evidence_path
-          ? `/${selectedIncident.evidence_path}`
-          : null;
+        const incEvidenceUrl = resolveAssetUrl(selectedIncident.evidence_path);
         const incIsVideo = Boolean(
           selectedIncident.evidence_mime
             ? selectedIncident.evidence_mime.startsWith('video/')

@@ -11,7 +11,7 @@ function api_ensure_superadmin_user_schema(mysqli $conn): void
         superadmin_name VARCHAR(255) NOT NULL,
         superadmin_email VARCHAR(255) NOT NULL,
         superadmin_pass VARCHAR(255) NOT NULL,
-        profile_photo VARCHAR(255) NULL,
+        profile_photo VARCHAR(512) NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uniq_superadmin_email (superadmin_email)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
@@ -26,7 +26,16 @@ function api_ensure_superadmin_user_schema(mysqli $conn): void
     }
 
     if ($needsProfilePhoto) {
-        $conn->query("ALTER TABLE superadmin_user ADD COLUMN profile_photo VARCHAR(255) NULL");
+        $conn->query("ALTER TABLE superadmin_user ADD COLUMN profile_photo VARCHAR(512) NULL");
+    } else {
+        $res = $conn->query("SHOW COLUMNS FROM superadmin_user LIKE 'profile_photo'");
+        if ($res) {
+            $col = $res->fetch_assoc();
+            if ($col && stripos((string)($col['Type'] ?? ''), 'varchar(512)') === false) {
+                $conn->query("ALTER TABLE superadmin_user MODIFY COLUMN profile_photo VARCHAR(512) NULL");
+            }
+            $res->free();
+        }
     }
 
     $res2 = $conn->query("SHOW COLUMNS FROM superadmin_user LIKE 'status'");

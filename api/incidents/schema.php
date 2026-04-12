@@ -13,7 +13,7 @@ function api_ensure_incident_schema(mysqli $conn): void
         sitio VARCHAR(120) NOT NULL,
         description TEXT NOT NULL,
         witness VARCHAR(200) NULL,
-        evidence_path VARCHAR(255) NULL,
+        evidence_path VARCHAR(512) NULL,
         evidence_mime VARCHAR(120) NULL,
         status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -22,6 +22,15 @@ function api_ensure_incident_schema(mysqli $conn): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     $conn->query($sql);
+
+    $checkEvidencePath = $conn->query("SHOW COLUMNS FROM incidents LIKE 'evidence_path'");
+    if ($checkEvidencePath) {
+        $column = $checkEvidencePath->fetch_assoc();
+        if ($column && stripos((string)($column['Type'] ?? ''), 'varchar(512)') === false) {
+            $conn->query("ALTER TABLE incidents MODIFY COLUMN evidence_path VARCHAR(512) NULL");
+        }
+        $checkEvidencePath->free();
+    }
 
     // Add tracking_number column if missing (for existing tables)
     $check = $conn->query("SHOW COLUMNS FROM incidents LIKE 'tracking_number'");
