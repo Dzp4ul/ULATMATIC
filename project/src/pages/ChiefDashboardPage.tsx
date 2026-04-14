@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IncidentStatsCharts } from '../components/IncidentStatsCharts';
+import { EmergencyAlertOverlay } from '../components/EmergencyAlertOverlay';
 import { IncidentActionModal } from '../components/IncidentActionModal';
 import { IncidentDetailsModal, type IncidentDetailsData } from '../components/IncidentDetailsModal';
 import { NavSearch, type NavItem } from '../components/NavSearch';
@@ -256,9 +257,9 @@ export default function ChiefDashboardPage({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: incidentStatus, all: true }),
             });
-            const data = await res.json();
+            const data = (await res.json()) as { ok?: boolean; incidents?: IncidentRow[] };
             if (data.ok && Array.isArray(data.incidents)) {
-              setIncidents(data.incidents.map((r: any) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
+              setIncidents(data.incidents.map((r) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
             }
           } catch { /* ignore */ }
         };
@@ -335,9 +336,9 @@ export default function ChiefDashboardPage({
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'ALL', all: true }),
         });
-        const data = await res.json();
+        const data = (await res.json()) as { ok?: boolean; incidents?: IncidentRow[] };
         if (active && data.ok && Array.isArray(data.incidents) && incidents.length === 0) {
-          setIncidents(data.incidents.map((r: any) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
+          setIncidents(data.incidents.map((r) => ({ ...r, id: Number(r.id), resident_id: r.resident_id == null ? null : Number(r.resident_id) })));
         }
       } catch { /* ignore */ }
     };
@@ -1077,6 +1078,14 @@ export default function ChiefDashboardPage({
           void handleAccept(incidentDetails.id);
         }}
         isAccepting={incidentDetails ? incidentActionId === incidentDetails.id : false}
+      />
+      <EmergencyAlertOverlay
+        updates={updates}
+        onOpenIncidents={() => {
+          setActiveView('incidents');
+          setIncidentStatus('ACTIVE');
+          setIncidentsPage(1);
+        }}
       />
     </div>
   );

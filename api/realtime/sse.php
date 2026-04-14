@@ -34,7 +34,7 @@ while (true) {
     
     // Check for new incidents (for chief & pio)
     if ($userType === 'chief' || $userType === 'pio') {
-        $stmt = $conn->prepare("SELECT id, tracking_number, incident_type, sitio, created_at FROM incidents WHERE created_at > DATE_SUB(NOW(), INTERVAL 10 SECOND) ORDER BY created_at DESC LIMIT 5");
+        $stmt = $conn->prepare("SELECT id, tracking_number, incident_type, incident_category, sitio, created_at FROM incidents WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 SECOND) ORDER BY created_at DESC LIMIT 5");
         if ($stmt) {
             $stmt->execute();
             $result = $stmt->get_result();
