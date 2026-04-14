@@ -257,6 +257,7 @@ export default function ResidentDashboardPage({
   const [profileBackIdFile, setProfileBackIdFile] = useState<File | null>(null);
   const [profileFrontIdPreview, setProfileFrontIdPreview] = useState<string | null>(null);
   const [profileBackIdPreview, setProfileBackIdPreview] = useState<string | null>(null);
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
   const [profilePassword, setProfilePassword] = useState('');
   const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
@@ -1260,8 +1261,29 @@ export default function ResidentDashboardPage({
                       return;
                     }
 
-                    if (profilePassword.trim() && profilePassword !== profileConfirmPassword) {
+                    const currentProfilePassword = profileCurrentPassword.trim();
+                    const newProfilePassword = profilePassword.trim();
+                    const confirmProfilePassword = profileConfirmPassword.trim();
+                    const wantsPasswordChange = currentProfilePassword !== '' || newProfilePassword !== '' || confirmProfilePassword !== '';
+                    const profilePasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/;
+
+                    if (wantsPasswordChange && currentProfilePassword === '') {
+                      setProfileError('Enter your current password first.');
+                      return;
+                    }
+
+                    if (wantsPasswordChange && (newProfilePassword === '' || confirmProfilePassword === '')) {
+                      setProfileError('Enter and confirm your new password.');
+                      return;
+                    }
+
+                    if (newProfilePassword && newProfilePassword !== confirmProfilePassword) {
                       setProfileError('Passwords do not match.');
+                      return;
+                    }
+
+                    if (newProfilePassword && !profilePasswordPattern.test(newProfilePassword)) {
+                      setProfileError('Password must include uppercase, lowercase, number, and symbol.');
                       return;
                     }
 
@@ -1287,7 +1309,10 @@ export default function ResidentDashboardPage({
                       if (profilePhotoFile) fd.append('profile_photo', profilePhotoFile);
                       if (profileFrontIdFile) fd.append('front_id', profileFrontIdFile);
                       if (profileBackIdFile) fd.append('back_id', profileBackIdFile);
-                      if (profilePassword.trim()) fd.append('user_pass', profilePassword.trim());
+                      if (newProfilePassword) {
+                        fd.append('current_password', currentProfilePassword);
+                        fd.append('user_pass', newProfilePassword);
+                      }
 
                       const res = await fetch('/api/resident/update_profile.php', {
                         method: 'POST',
@@ -1339,6 +1364,7 @@ export default function ResidentDashboardPage({
                       setProfilePhotoFile(null);
                       setProfileFrontIdFile(null);
                       setProfileBackIdFile(null);
+                      setProfileCurrentPassword('');
                       setProfilePassword('');
                       setProfileConfirmPassword('');
                       if (profilePhotoInputRef.current) profilePhotoInputRef.current.value = '';
@@ -1391,7 +1417,15 @@ export default function ResidentDashboardPage({
                         <div className="text-sm font-semibold text-gray-900">Personal Information</div>
                         <button
                           type="button"
-                          onClick={() => setIsEditMode(!isEditMode)}
+                          onClick={() => {
+                            if (isEditMode) {
+                              setProfileCurrentPassword('');
+                              setProfilePassword('');
+                              setProfileConfirmPassword('');
+                              setProfileError(null);
+                            }
+                            setIsEditMode(!isEditMode);
+                          }}
                           className="text-xs font-semibold text-brand hover:text-brand/80"
                         >
                           {isEditMode ? 'Cancel' : 'Edit'}
@@ -1546,29 +1580,48 @@ export default function ResidentDashboardPage({
 
                   {isEditMode && (
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-900">Account Settings</div>
+                      <div className="text-sm font-semibold text-gray-900">Change Password</div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Enter your current password before setting a new password.
+                      </p>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Current Password</label>
+                          <input
+                            type="password"
+                            value={profileCurrentPassword}
+                            onChange={(e) => setProfileCurrentPassword(e.target.value)}
+                            autoComplete="current-password"
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                            placeholder="Current password"
+                          />
+                        </div>
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 mb-1">New Password</label>
                           <input
                             type="password"
                             value={profilePassword}
                             onChange={(e) => setProfilePassword(e.target.value)}
+                            autoComplete="new-password"
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                            placeholder="••••••••"
+                            placeholder="New password"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password</label>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Re-type New Password</label>
                           <input
                             type="password"
                             value={profileConfirmPassword}
                             onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                            autoComplete="new-password"
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                            placeholder="••••••••"
+                            placeholder="Re-type new password"
                           />
                         </div>
                       </div>
+                      <p className="mt-3 text-xs text-gray-500">
+                        New password must include uppercase, lowercase, number, and symbol.
+                      </p>
                     </div>
                   )}
 

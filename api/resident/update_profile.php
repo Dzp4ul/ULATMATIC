@@ -33,6 +33,7 @@ $email = trim((string)($body['email'] ?? ''));
 $phone = trim((string)($body['phone'] ?? ''));
 $gender = trim((string)($body['gender'] ?? ''));
 $sitio = trim((string)($body['sitio'] ?? ''));
+$currentPassword = trim((string)($body['current_password'] ?? ''));
 $userPass = trim((string)($body['user_pass'] ?? ''));
 $removePhoto = (string)($body['remove_photo'] ?? '') === '1';
 
@@ -83,6 +84,30 @@ $storedPass = (string)($existing['user_pass'] ?? '');
 $hashedPass = $storedPass;
 
 if ($userPass !== '') {
+    if ($currentPassword === '') {
+        $conn->close();
+        api_send_json(400, [
+            'ok' => false,
+            'error' => 'Current password is required to change password.',
+        ]);
+    }
+
+    if (!password_verify($currentPassword, $storedPass)) {
+        $conn->close();
+        api_send_json(401, [
+            'ok' => false,
+            'error' => 'Current password is incorrect.',
+        ]);
+    }
+
+    if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/', $userPass)) {
+        $conn->close();
+        api_send_json(400, [
+            'ok' => false,
+            'error' => 'Password must include uppercase, lowercase, number, and symbol.',
+        ]);
+    }
+
     $hashedPass = password_hash($userPass, PASSWORD_DEFAULT);
 }
 
