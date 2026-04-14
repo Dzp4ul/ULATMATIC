@@ -26,14 +26,14 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!forgotOpen || forgotStep !== 'otp') return;
+    if (!forgotOpen || (forgotStep !== 'otp' && forgotStep !== 'reset')) return;
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [forgotOpen, forgotStep]);
 
   const forgotExpiresInSeconds = forgotOtpExpiresAt ? Math.max(0, Math.floor((forgotOtpExpiresAt - nowMs) / 1000)) : 0;
   const forgotResendInSeconds = forgotResendAvailableAt ? Math.max(0, Math.ceil((forgotResendAvailableAt - nowMs) / 1000)) : 0;
-  const forgotOtpExpired = forgotStep === 'otp' && forgotExpiresInSeconds <= 0 && forgotOtpExpiresAt !== null;
+  const forgotOtpExpired = (forgotStep === 'otp' || forgotStep === 'reset') && forgotExpiresInSeconds <= 0 && forgotOtpExpiresAt !== null;
 
   const formatSeconds = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -59,9 +59,13 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
         setForgotError(data.error ?? 'Failed to send OTP');
         return;
       }
+      const sentAt = Date.now();
+      setNowMs(sentAt);
       setForgotOtp('');
-      setForgotOtpExpiresAt(Date.now() + 10 * 60 * 1000);
-      setForgotResendAvailableAt(Date.now() + 30 * 1000);
+      setForgotNewPassword('');
+      setForgotConfirmPassword('');
+      setForgotOtpExpiresAt(sentAt + 10 * 60 * 1000);
+      setForgotResendAvailableAt(sentAt + 30 * 1000);
       setForgotStep('otp');
       setForgotSuccess(data.message ?? 'OTP sent to your email');
     } catch {
@@ -71,9 +75,51 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
     }
   };
 
-  const verifyForgotOtpAndReset = async () => {
+  const verifyForgotOtp = async () => {
     setForgotError(null);
     setForgotSuccess(null);
+
+    if (forgotOtp.trim().length !== 6) {
+      setForgotError('Enter the 6-digit OTP.');
+      return;
+    }
+
+    if (forgotOtpExpired) {
+      setForgotError('OTP has expired. Please request a new one.');
+      return;
+    }
+
+    setForgotSubmitting(true);
+    try {
+      const res = await fetch('/api/shared/verify_reset_otp.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail, otp: forgotOtp }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
+      if (!res.ok || !data.ok) {
+        setForgotError(data.error ?? 'OTP verification failed');
+        return;
+      }
+      setForgotStep('reset');
+      setForgotNewPassword('');
+      setForgotConfirmPassword('');
+      setForgotSuccess('OTP verified. Enter your new password.');
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
+  const resetForgotPassword = async () => {
+    setForgotError(null);
+    setForgotSuccess(null);
+
+    if (forgotOtpExpired) {
+      setForgotError('OTP has expired. Please request a new one.');
+      return;
+    }
 
     if (forgotNewPassword !== forgotConfirmPassword) {
       setForgotError('Passwords do not match.');
@@ -106,6 +152,10 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
         setForgotOtp('');
         setForgotNewPassword('');
         setForgotConfirmPassword('');
+        setForgotOtpExpiresAt(null);
+        setForgotResendAvailableAt(null);
+        setShowForgotPassword(false);
+        setShowForgotConfirmPassword(false);
       }, 2000);
     } catch {
       setForgotError('Network error. Please try again.');
@@ -125,6 +175,8 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
     setForgotConfirmPassword('');
     setForgotOtpExpiresAt(null);
     setForgotResendAvailableAt(null);
+    setShowForgotPassword(false);
+    setShowForgotConfirmPassword(false);
   };
 
   return (
@@ -381,12 +433,14 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">
-                    {forgotStep === 'email' ? 'Forgot Password' : forgotStep === 'otp' ? 'Verify OTP & Reset' : 'Reset Password'}
+                    {forgotStep === 'email' ? 'Forgot Password' : forgotStep === 'otp' ? 'Verify OTP' : 'Create New Password'}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
                     {forgotStep === 'email'
                       ? 'Enter your email address to receive a password reset code.'
-                      : 'Enter the OTP sent to your email and set a new password.'}
+                      : forgotStep === 'otp'
+                        ? 'Enter the OTP sent to your email.'
+                        : 'Set your new password.'}
                   </p>
                 </div>
                 <button
@@ -425,7 +479,7 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                       {forgotSubmitting ? 'Sending…' : 'Send Reset Code'}
                     </button>
                   </>
-                ) : (
+                ) : forgotStep === 'otp' ? (
                   <>
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-600">
@@ -459,6 +513,55 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand"
                         placeholder="Enter 6-digit OTP"
                       />
+                    </div>
+
+                    {forgotError ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{forgotError}</div> : null}
+                    {forgotSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{forgotSuccess}</div> : null}
+
+                    <button
+                      type="button"
+                      disabled={forgotSubmitting || forgotOtp.trim().length !== 6 || forgotOtpExpired}
+                      onClick={verifyForgotOtp}
+                      className="w-full bg-brand hover:bg-brand/90 disabled:bg-brand/60 text-white font-semibold py-3 rounded-lg shadow-sm transition-colors"
+                    >
+                      {forgotSubmitting ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotStep('email');
+                        setForgotError(null);
+                        setForgotSuccess(null);
+                      }}
+                      className="w-full text-sm font-semibold text-gray-600 hover:text-gray-900 py-2"
+                    >
+                      Back to email
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600">
+                        {forgotOtpExpired ? (
+                          <span className="text-red-600 font-semibold">Code expired</span>
+                        ) : (
+                          <span>
+                            Code expires in <span className="font-semibold">{formatSeconds(forgotExpiresInSeconds)}</span>
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotStep('otp');
+                          setForgotError(null);
+                          setForgotSuccess(null);
+                        }}
+                        className="text-sm font-semibold text-brand hover:text-brand/90"
+                      >
+                        Change OTP
+                      </button>
                     </div>
 
                     <div>
@@ -509,8 +612,8 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
 
                     <button
                       type="button"
-                      disabled={forgotSubmitting || forgotOtp.trim().length !== 6 || forgotOtpExpired || forgotNewPassword === '' || forgotConfirmPassword === ''}
-                      onClick={verifyForgotOtpAndReset}
+                      disabled={forgotSubmitting || forgotOtpExpired || forgotNewPassword === '' || forgotConfirmPassword === ''}
+                      onClick={resetForgotPassword}
                       className="w-full bg-brand hover:bg-brand/90 disabled:bg-brand/60 text-white font-semibold py-3 rounded-lg shadow-sm transition-colors"
                     >
                       {forgotSubmitting ? 'Resetting…' : 'Reset Password'}
@@ -519,13 +622,13 @@ export default function SignInPage({ onNavigate }: { onNavigate: (to: string) =>
                     <button
                       type="button"
                       onClick={() => {
-                        setForgotStep('email');
+                        setForgotStep('otp');
                         setForgotError(null);
                         setForgotSuccess(null);
                       }}
                       className="w-full text-sm font-semibold text-gray-600 hover:text-gray-900 py-2"
                     >
-                      ← Back to email
+                      Back to OTP
                     </button>
                   </>
                 )}
