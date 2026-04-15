@@ -1,0 +1,197 @@
+@startuml
+title ULATMATIC UML Class Diagram
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor White
+  BorderColor #555555
+  FontName Arial
+}
+
+abstract class UserAccount {
+  - id : int
+  - name : string
+  - email : string
+  - passwordHash : string
+  - profilePhoto : string?
+  - createdAt : datetime
+  - status : string
+}
+
+class ResidentAccount {
+  - fname : string
+  - midname : string?
+  - lname : string?
+  - suffix : string?
+  - phone : string
+  - gender : string
+  - sitio : string
+  - frontId : string
+  - backId : string
+  - selfiePhoto : string?
+  - approvedAt : datetime?
+  - declinedAt : datetime?
+}
+
+abstract class StaffAccount {
+  - role : {secretary, captain, chief, pio, superadmin}
+  - displayName : string
+  - roleEmail : string
+  - rolePasswordHash : string
+  - status : {active, inactive}
+}
+
+class SecretaryUser {
+  - table : sec_user
+  - permissionSet : complaints, hearings
+}
+
+class CaptainUser {
+  - table : captain_user
+  - permissionSet : complaints, hearings
+}
+
+class ChiefUser {
+  - table : chief_user
+  - permissionSet : incidents
+}
+
+class PioUser {
+  - table : pio_user
+  - permissionSet : incidents, alerts
+}
+
+class SuperAdminUser {
+  - table : superadmin_user
+  - permissionSet : staff accounts
+}
+
+abstract class Report {
+  - id : int
+  - trackingNumber : string?
+  - category : string
+  - sitio : string
+  - description : text
+  - witness : string?
+  - status : {PENDING, IN_PROGRESS, RESOLVED, TRANSFERRED}
+  - evidencePath : string?
+  - evidenceMime : string?
+  - createdAt : datetime
+}
+
+class Complaint {
+  - residentId : int
+  - caseNumber : string?
+  - complaintTitle : string
+  - complaintType : string?
+  - complaintCategory : string
+  - respondentName : string?
+  - respondentAddress : string?
+  - incidentDate : date?
+  - incidentTime : time?
+  - assignedRole : {secretary, captain}?
+}
+
+class IncidentReport {
+  - residentId : int?
+  - incidentType : string
+  - incidentCategory : string
+  - resolvedAt : datetime?
+  - transferredAt : datetime?
+}
+
+class EmergencyIncident {
+  - reporterName : string
+  - contactNumber : string
+  - trackingPrefix : EMG
+}
+
+class HearingSchedule {
+  - id : int
+  - complaintId : int
+  - scheduledDate : date
+  - scheduledTime : time
+  - location : string
+  - notes : text?
+  - status : string
+  - resolutionType : string?
+  - resolutionMethod : string?
+  - resolutionNotes : text?
+  - resolvedAt : datetime?
+}
+
+class Notification {
+  - id : int
+  - userId : int
+  - userRole : string
+  - title : string
+  - message : text
+  - type : {complaint, incident, hearing, resident, system}
+  - referenceId : int?
+  - isRead : boolean
+  - createdAt : datetime
+}
+
+class UploadedFile {
+  - id : bigint
+  - storageKey : string
+  - contentType : string
+  - fileSize : bigint
+  - data : blob
+  - createdAt : datetime
+  - updatedAt : datetime
+}
+
+class OtpRecord {
+  - email : string
+  - purpose : {emailVerification, passwordReset}
+  - otpHash : string
+  - expiresAt : datetime
+  - attempts : int
+  - createdAt : datetime
+}
+
+class IncidentView {
+  - id : int
+  - incidentId : int
+  - userId : int
+  - userRole : {chief, pio, captain, secretary}
+  - viewedAt : datetime
+}
+
+UserAccount <|-- ResidentAccount
+UserAccount <|-- StaffAccount
+StaffAccount <|-- SecretaryUser
+StaffAccount <|-- CaptainUser
+StaffAccount <|-- ChiefUser
+StaffAccount <|-- PioUser
+StaffAccount <|-- SuperAdminUser
+
+Report <|-- Complaint
+Report <|-- IncidentReport
+IncidentReport <|-- EmergencyIncident
+
+ResidentAccount "1" -- "0..*" Complaint : files
+ResidentAccount "0..1" -- "0..*" IncidentReport : submits
+StaffAccount "0..*" -- "0..*" Report : manages
+Complaint "1" -- "0..*" HearingSchedule : has
+IncidentReport ..> Complaint : transfers into
+UserAccount "1" -- "0..*" Notification : receives
+Report "0..*" -- "0..1" UploadedFile : evidence
+ResidentAccount "1" -- "0..*" UploadedFile : IDs/profile
+UserAccount "1" -- "0..*" OtpRecord : verifies/resets
+IncidentReport "1" -- "0..*" IncidentView : viewed by
+StaffAccount "1" -- "0..*" IncidentView : records view
+Notification ..> Complaint : referenceId
+Notification ..> IncidentReport : referenceId
+Notification ..> HearingSchedule : referenceId
+
+note bottom
+  Staff roles are stored in separate tables:
+  sec_user, captain_user, chief_user, pio_user, and superadmin_user.
+  Emergency reports are stored in incidents with EMG tracking numbers.
+end note
+
+@enduml

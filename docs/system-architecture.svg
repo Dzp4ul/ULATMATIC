@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="580" viewBox="0 0 900 580" role="img" aria-labelledby="title desc">
+  <title id="title">ULATMATIC System Architecture</title>
+  <desc id="desc">A grayscale layered system architecture diagram for ULATMATIC showing presentation, application, and data layers with arrows between functional modules.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#111"/>
+    </marker>
+    <style>
+      .page { fill: #fff; }
+      .layer { fill: #f7f7f7; stroke: #777; stroke-width: 1; rx: 4; }
+      .box { fill: #fff; stroke: #777; stroke-width: 1; rx: 4; }
+      .layer-title { font: 700 10px Arial, Helvetica, sans-serif; fill: #222; letter-spacing: 0; }
+      .box-title { font: 700 9px Arial, Helvetica, sans-serif; fill: #333; letter-spacing: 0; }
+      .box-text { font: 400 12px Arial, Helvetica, sans-serif; fill: #111; letter-spacing: 0; }
+      .small { font: 400 8.5px Arial, Helvetica, sans-serif; fill: #111; letter-spacing: 0; }
+      .arrow { stroke: #111; stroke-width: 1; fill: none; marker-end: url(#arrow); }
+      .arrow-light { stroke: #111; stroke-width: 0.9; fill: none; marker-end: url(#arrow); }
+      .label { font: 400 8.5px Arial, Helvetica, sans-serif; fill: #111; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="900" height="580"/>
+
+  <!-- Presentation Layer -->
+  <rect class="layer" x="8" y="10" width="884" height="121"/>
+  <text class="layer-title" x="450" y="21" text-anchor="middle">Presentation Layer</text>
+
+  <rect class="box" x="38" y="37" width="212" height="78"/>
+  <text class="box-title" x="144" y="48" text-anchor="middle">Residents / Barangay Staff</text>
+  <text class="box-text" x="144" y="74" text-anchor="middle">Users access ULATMATIC</text>
+  <text class="box-text" x="144" y="89" text-anchor="middle">through a web-based</text>
+  <text class="box-text" x="144" y="104" text-anchor="middle">desktop or mobile interface.</text>
+
+  <rect class="box" x="344" y="37" width="212" height="78"/>
+  <text class="box-title" x="450" y="48" text-anchor="middle">ULATMATIC Web Interface</text>
+  <text class="box-text" x="450" y="74" text-anchor="middle">Login, registration, dashboards,</text>
+  <text class="box-text" x="450" y="89" text-anchor="middle">case tracking, emergency reports,</text>
+  <text class="box-text" x="450" y="104" text-anchor="middle">and notification viewing.</text>
+
+  <rect class="box" x="652" y="37" width="212" height="78"/>
+  <text class="box-title" x="758" y="48" text-anchor="middle">Camera / File Upload</text>
+  <text class="box-text" x="758" y="74" text-anchor="middle">IDs, selfies, complaint evidence,</text>
+  <text class="box-text" x="758" y="89" text-anchor="middle">and incident attachments are</text>
+  <text class="box-text" x="758" y="104" text-anchor="middle">uploaded for validation.</text>
+
+  <path class="arrow" d="M250 76 H344"/>
+  <text class="label" x="297" y="71" text-anchor="middle">interacts with</text>
+  <path class="arrow" d="M556 76 H652"/>
+  <text class="label" x="604" y="71" text-anchor="middle">uploads files</text>
+
+  <!-- Application Layer -->
+  <rect class="layer" x="8" y="154" width="884" height="262"/>
+  <text class="layer-title" x="450" y="166" text-anchor="middle">Application Layer</text>
+
+  <path class="arrow" d="M450 115 V154"/>
+  <text class="label" x="456" y="139">user requests</text>
+  <path class="arrow" d="M758 115 V154"/>
+  <text class="label" x="766" y="139">file input</text>
+
+  <rect class="box" x="38" y="182" width="168" height="78"/>
+  <text class="box-title" x="122" y="193" text-anchor="middle">Authentication &amp; Access Control</text>
+  <text class="box-text" x="122" y="221" text-anchor="middle">Validates users and</text>
+  <text class="box-text" x="122" y="236" text-anchor="middle">enforces role-based</text>
+  <text class="box-text" x="122" y="251" text-anchor="middle">permissions.</text>
+
+  <rect class="box" x="255" y="182" width="168" height="78"/>
+  <text class="box-title" x="339" y="193" text-anchor="middle">Resident &amp; Staff Management</text>
+  <text class="box-text" x="339" y="221" text-anchor="middle">Handles registration, resident</text>
+  <text class="box-text" x="339" y="236" text-anchor="middle">approval, profile updates,</text>
+  <text class="box-text" x="339" y="251" text-anchor="middle">and staff accounts.</text>
+
+  <rect class="box" x="477" y="182" width="168" height="78"/>
+  <text class="box-title" x="561" y="193" text-anchor="middle">Complaint Case Management</text>
+  <text class="box-text" x="561" y="221" text-anchor="middle">Creates, tracks, assigns,</text>
+  <text class="box-text" x="561" y="236" text-anchor="middle">and updates barangay</text>
+  <text class="box-text" x="561" y="251" text-anchor="middle">complaint records.</text>
+
+  <rect class="box" x="688" y="182" width="168" height="78"/>
+  <text class="box-title" x="772" y="193" text-anchor="middle">Incident / Emergency Processing</text>
+  <text class="box-text" x="772" y="221" text-anchor="middle">Receives incident reports,</text>
+  <text class="box-text" x="772" y="236" text-anchor="middle">emergency submissions,</text>
+  <text class="box-text" x="772" y="251" text-anchor="middle">and response actions.</text>
+
+  <path class="arrow" d="M206 221 H255"/>
+  <path class="arrow" d="M423 221 H477"/>
+  <path class="arrow" d="M645 221 H688"/>
+
+  <rect class="box" x="132" y="321" width="168" height="78"/>
+  <text class="box-title" x="216" y="332" text-anchor="middle">Hearing Scheduling &amp; Resolution</text>
+  <text class="box-text" x="216" y="360" text-anchor="middle">Schedules hearings, records</text>
+  <text class="box-text" x="216" y="375" text-anchor="middle">settlements, and produces</text>
+  <text class="box-text" x="216" y="390" text-anchor="middle">case outcomes.</text>
+
+  <rect class="box" x="356" y="321" width="168" height="78"/>
+  <text class="box-title" x="440" y="332" text-anchor="middle">Reporting &amp; Analytics</text>
+  <text class="box-text" x="440" y="360" text-anchor="middle">Generates dashboard metrics,</text>
+  <text class="box-text" x="440" y="375" text-anchor="middle">KP reports, status summaries,</text>
+  <text class="box-text" x="440" y="390" text-anchor="middle">and incident analytics.</text>
+
+  <rect class="box" x="580" y="321" width="168" height="78"/>
+  <text class="box-title" x="664" y="332" text-anchor="middle">Notification / Activity Logging</text>
+  <text class="box-text" x="664" y="360" text-anchor="middle">Records system activities,</text>
+  <text class="box-text" x="664" y="375" text-anchor="middle">stores alerts, and sends</text>
+  <text class="box-text" x="664" y="390" text-anchor="middle">status notifications.</text>
+
+  <path class="arrow-light" d="M339 260 L216 321"/>
+  <text class="label" x="264" y="300">verified resident data</text>
+  <path class="arrow-light" d="M561 260 L440 321"/>
+  <text class="label" x="502" y="298">case data</text>
+  <path class="arrow-light" d="M772 260 L664 321"/>
+  <text class="label" x="724" y="300">incident updates</text>
+  <path class="arrow-light" d="M300 360 H356"/>
+  <text class="label" x="328" y="354" text-anchor="middle">results</text>
+  <path class="arrow-light" d="M524 360 H580"/>
+  <text class="label" x="552" y="354" text-anchor="middle">reports</text>
+
+  <!-- Data Layer -->
+  <rect class="layer" x="8" y="465" width="884" height="123"/>
+  <text class="layer-title" x="450" y="477" text-anchor="middle">Data Layer</text>
+
+  <rect class="box" x="38" y="493" width="212" height="80"/>
+  <text class="box-title" x="144" y="504" text-anchor="middle">ULATMATIC Database</text>
+  <text class="box-text" x="144" y="529" text-anchor="middle">Stores users, staff, complaints,</text>
+  <text class="box-text" x="144" y="544" text-anchor="middle">incidents, hearings, notifications,</text>
+  <text class="box-text" x="144" y="559" text-anchor="middle">tracking numbers, and reports.</text>
+
+  <rect class="box" x="344" y="493" width="212" height="80"/>
+  <text class="box-title" x="450" y="504" text-anchor="middle">File Storage</text>
+  <text class="box-text" x="450" y="529" text-anchor="middle">Stores ID photos, selfies,</text>
+  <text class="box-text" x="450" y="544" text-anchor="middle">uploaded evidence, emergency</text>
+  <text class="box-text" x="450" y="559" text-anchor="middle">attachments, and exported files.</text>
+
+  <rect class="box" x="652" y="493" width="212" height="80"/>
+  <text class="box-title" x="758" y="504" text-anchor="middle">Email / Backup Services</text>
+  <text class="box-text" x="758" y="529" text-anchor="middle">Delivers status emails through</text>
+  <text class="box-text" x="758" y="544" text-anchor="middle">SMTP and preserves records</text>
+  <text class="box-text" x="758" y="559" text-anchor="middle">for recovery support.</text>
+
+  <!-- Application to data flows -->
+  <path class="arrow-light" d="M122 260 V493"/>
+  <text class="label" x="98" y="444">user account</text>
+  <text class="label" x="112" y="456">data</text>
+
+  <path class="arrow-light" d="M216 399 L144 493"/>
+  <text class="label" x="197" y="451">case records</text>
+
+  <path class="arrow-light" d="M440 399 V493"/>
+  <text class="label" x="447" y="445">reports</text>
+
+  <path class="arrow-light" d="M664 399 L450 493"/>
+  <text class="label" x="536" y="445">files</text>
+  <text class="label" x="528" y="457">and logs</text>
+
+  <path class="arrow-light" d="M772 260 L450 493"/>
+  <text class="label" x="612" y="286">uploaded evidence</text>
+
+  <path class="arrow-light" d="M664 399 V493"/>
+  <text class="label" x="672" y="444">email queue</text>
+
+  <path class="arrow-light" d="M748 360 L758 493"/>
+  <text class="label" x="770" y="445">backup</text>
+
+  <path class="arrow-light" d="M556 533 H652"/>
+  <text class="label" x="604" y="526" text-anchor="middle">exported files</text>
+
+  <path class="arrow-light" d="M250 533 H344"/>
+  <text class="label" x="297" y="526" text-anchor="middle">evidence keys</text>
+</svg>

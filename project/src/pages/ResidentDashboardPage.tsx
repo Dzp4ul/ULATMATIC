@@ -72,9 +72,11 @@ type HearingRow = {
   complaint_title: string;
   complaint_type: string;
   created_at?: string | null;
+  attempt_count?: number | string | null;
   resolved_at?: string | null;
   resolution_type?: string | null;
   resolution_method?: string | null;
+  resolution_notes?: string | null;
 };
 
 function formatHearingDate(dateStr: string | null | undefined): string {
@@ -469,6 +471,7 @@ export default function ResidentDashboardPage({
   const [caseResolutionHearings, setCaseResolutionHearings] = useState<HearingRow[]>([]);
   const [caseResolutionLoading, setCaseResolutionLoading] = useState(false);
   const [caseResolutionSearch, setCaseResolutionSearch] = useState('');
+  const [selectedCaseResolution, setSelectedCaseResolution] = useState<HearingRow | null>(null);
 
   /* ── Search & Filter state ── */
   const [complaintSearch, setComplaintSearch] = useState('');
@@ -2576,7 +2579,7 @@ export default function ResidentDashboardPage({
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[900px] text-sm">
+                      <table className="w-full min-w-[1000px] text-sm">
                         <thead>
                           <tr className="border-b border-gray-200 bg-gray-50">
                             <th className="px-5 py-3 text-left font-semibold text-gray-600">Case #</th>
@@ -2586,6 +2589,7 @@ export default function ResidentDashboardPage({
                             <th className="px-5 py-3 text-left font-semibold text-gray-600">Resolution</th>
                             <th className="px-5 py-3 text-left font-semibold text-gray-600">Method</th>
                             <th className="px-5 py-3 text-left font-semibold text-gray-600">Status</th>
+                            <th className="px-5 py-3 text-center font-semibold text-gray-600">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -2615,6 +2619,15 @@ export default function ResidentDashboardPage({
                               <td className="px-5 py-3 text-gray-700">{row.resolution_method ?? '-'}</td>
                               <td className="px-5 py-3">
                                 <StatusBadge status={row.status} />
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCaseResolution(row)}
+                                  className="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/5"
+                                >
+                                  View
+                                </button>
                               </td>
                             </tr>
                           ))}
@@ -2755,6 +2768,128 @@ export default function ResidentDashboardPage({
           </div>
         </div>
       ) : null}
+
+      {selectedCaseResolution ? (() => {
+        const attemptCount = Math.max(1, Number(selectedCaseResolution.attempt_count ?? 1) || 1);
+        const resolutionType = selectedCaseResolution.resolution_type?.trim() || '';
+        const isSettled = resolutionType === 'SETTLED';
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setSelectedCaseResolution(null)}
+              aria-label="Close"
+            />
+            <div className="relative w-full max-w-2xl rounded-2xl border border-gray-100 bg-white shadow-xl">
+              <div className="max-h-[85vh] overflow-y-auto p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Case Resolution Details</h3>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Case #{selectedCaseResolution.case_number ?? selectedCaseResolution.tracking_number ?? '-'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCaseResolution(null)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Complaint</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedCaseResolution.complaint_title}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Type</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedCaseResolution.complaint_type}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Hearing Date</div>
+                    <div className="mt-1 font-semibold text-gray-900">{formatHearingDate(selectedCaseResolution.scheduled_date)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Hearing Attempts</div>
+                    <div className="mt-1">
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${
+                        attemptCount >= 3
+                          ? 'bg-red-100 text-red-700'
+                          : attemptCount >= 2
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-green-100 text-green-700'
+                      }`}>
+                        {attemptCount}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Resolution</div>
+                    <div className="mt-1">
+                      {resolutionType ? (
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          resolutionType === 'SETTLED' ? 'bg-emerald-100 text-emerald-700'
+                          : resolutionType === 'DISMISSED' ? 'bg-red-100 text-red-700'
+                          : resolutionType === 'WITHDRAWN' ? 'bg-gray-100 text-gray-600'
+                          : resolutionType === 'PENDING' ? 'bg-orange-100 text-orange-700'
+                          : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {resolutionType}
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">UNRESOLVED</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">{isSettled ? 'Settlement Method' : 'Method'}</div>
+                    <div className="mt-1 font-semibold text-gray-900">{selectedCaseResolution.resolution_method || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Status</div>
+                    <div className="mt-1">
+                      <StatusBadge status={selectedCaseResolution.status} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Resolved At</div>
+                    <div className="mt-1 font-semibold text-gray-900">{formatPhDate(selectedCaseResolution.resolved_at)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <div className="text-xs text-gray-500">Hearing Notes</div>
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 whitespace-pre-line">
+                      {selectedCaseResolution.notes || 'No hearing notes recorded.'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Resolution Notes</div>
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 whitespace-pre-line">
+                      {selectedCaseResolution.resolution_notes || 'No resolution notes recorded.'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCaseResolution(null)}
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand/90"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
 
       {selectedComplaint ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

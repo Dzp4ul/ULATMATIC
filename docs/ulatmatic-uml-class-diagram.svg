@@ -1,0 +1,327 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="2050" viewBox="0 0 1900 2050" role="img" aria-labelledby="title desc">
+  <title id="title">ULATMATIC UML Class Diagram</title>
+  <desc id="desc">A grayscale UML class diagram for the ULATMATIC system showing user accounts, reports, hearings, notifications, uploaded files, OTP records, and their relationships.</desc>
+  <defs>
+    <pattern id="small-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M20 0 H0 V20" fill="none" stroke="#eeeeee" stroke-width="1"/>
+    </pattern>
+    <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+      <rect width="100" height="100" fill="url(#small-grid)"/>
+      <path d="M100 0 H0 V100" fill="none" stroke="#dddddd" stroke-width="1"/>
+    </pattern>
+    <marker id="generalization" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto" markerUnits="strokeWidth">
+      <path d="M14,8 L2,2 L2,14 Z" fill="#ffffff" stroke="#555555" stroke-width="1.4"/>
+    </marker>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#555555"/>
+    </marker>
+    <style>
+      .page { fill: #ffffff; }
+      .grid { fill: url(#grid); }
+      .class-box { fill: #ffffff; stroke: #555555; stroke-width: 2; rx: 6; }
+      .divider { stroke: #555555; stroke-width: 2; }
+      .title { font: 700 22px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+      .abstract-title { font: italic 700 22px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+      .attribute { font: 400 18px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+      .small-attribute { font: 400 16px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+      .rel { stroke: #555555; stroke-width: 2; fill: none; }
+      .dash { stroke: #555555; stroke-width: 2; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
+      .label { font: 400 16px Arial, Helvetica, sans-serif; fill: #333333; letter-spacing: 0; }
+      .note-title { font: 700 18px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+      .note-text { font: 400 16px Arial, Helvetica, sans-serif; fill: #444444; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1900" height="2050"/>
+  <rect class="grid" x="0" y="0" width="1900" height="2050"/>
+
+  <!-- User model -->
+  <g id="user-account" transform="translate(650 30)">
+    <rect class="class-box" x="0" y="0" width="600" height="250"/>
+    <line class="divider" x1="0" y1="48" x2="600" y2="48"/>
+    <line class="divider" x1="0" y1="218" x2="600" y2="218"/>
+    <text class="abstract-title" x="300" y="32" text-anchor="middle">UserAccount {abstract}</text>
+    <text class="attribute" x="20" y="82">- id : int</text>
+    <text class="attribute" x="20" y="106">- name : string</text>
+    <text class="attribute" x="20" y="130">- email : string</text>
+    <text class="attribute" x="20" y="154">- passwordHash : string</text>
+    <text class="attribute" x="20" y="178">- profilePhoto : string?</text>
+    <text class="attribute" x="20" y="202">- createdAt : datetime</text>
+  </g>
+
+  <g id="resident-account" transform="translate(60 380)">
+    <rect class="class-box" x="0" y="0" width="500" height="320"/>
+    <line class="divider" x1="0" y1="48" x2="500" y2="48"/>
+    <line class="divider" x1="0" y1="288" x2="500" y2="288"/>
+    <text class="title" x="250" y="32" text-anchor="middle">ResidentAccount</text>
+    <text class="attribute" x="20" y="82">- fname : string</text>
+    <text class="attribute" x="20" y="106">- midname : string?</text>
+    <text class="attribute" x="20" y="130">- lname : string?</text>
+    <text class="attribute" x="20" y="154">- suffix : string?</text>
+    <text class="attribute" x="20" y="178">- phone : string</text>
+    <text class="attribute" x="20" y="202">- gender : string</text>
+    <text class="attribute" x="20" y="226">- sitio : string</text>
+    <text class="attribute" x="20" y="250">- frontId / backId / selfiePhoto : file path</text>
+    <text class="attribute" x="20" y="274">- approvedAt / declinedAt : datetime?</text>
+  </g>
+
+  <g id="staff-account" transform="translate(700 380)">
+    <rect class="class-box" x="0" y="0" width="500" height="230"/>
+    <line class="divider" x1="0" y1="48" x2="500" y2="48"/>
+    <line class="divider" x1="0" y1="198" x2="500" y2="198"/>
+    <text class="abstract-title" x="250" y="32" text-anchor="middle">StaffAccount {abstract}</text>
+    <text class="attribute" x="20" y="82">- role : {secretary, captain, chief, pio, superadmin}</text>
+    <text class="attribute" x="20" y="106">- displayName : string</text>
+    <text class="attribute" x="20" y="130">- roleEmail : string</text>
+    <text class="attribute" x="20" y="154">- rolePasswordHash : string</text>
+    <text class="attribute" x="20" y="178">- status : {active, inactive}</text>
+  </g>
+
+  <g id="secretary-user" transform="translate(610 740)">
+    <rect class="class-box" x="0" y="0" width="230" height="140"/>
+    <line class="divider" x1="0" y1="44" x2="230" y2="44"/>
+    <line class="divider" x1="0" y1="112" x2="230" y2="112"/>
+    <text class="title" x="115" y="30" text-anchor="middle">SecretaryUser</text>
+    <text class="small-attribute" x="14" y="72">- table : sec_user</text>
+    <text class="small-attribute" x="14" y="96">- scope : complaints, hearings</text>
+  </g>
+
+  <g id="captain-user" transform="translate(860 740)">
+    <rect class="class-box" x="0" y="0" width="230" height="140"/>
+    <line class="divider" x1="0" y1="44" x2="230" y2="44"/>
+    <line class="divider" x1="0" y1="112" x2="230" y2="112"/>
+    <text class="title" x="115" y="30" text-anchor="middle">CaptainUser</text>
+    <text class="small-attribute" x="14" y="72">- table : captain_user</text>
+    <text class="small-attribute" x="14" y="96">- scope : complaints, hearings</text>
+  </g>
+
+  <g id="chief-user" transform="translate(1110 740)">
+    <rect class="class-box" x="0" y="0" width="230" height="140"/>
+    <line class="divider" x1="0" y1="44" x2="230" y2="44"/>
+    <line class="divider" x1="0" y1="112" x2="230" y2="112"/>
+    <text class="title" x="115" y="30" text-anchor="middle">ChiefUser</text>
+    <text class="small-attribute" x="14" y="72">- table : chief_user</text>
+    <text class="small-attribute" x="14" y="96">- scope : incidents</text>
+  </g>
+
+  <g id="pio-user" transform="translate(1360 740)">
+    <rect class="class-box" x="0" y="0" width="230" height="140"/>
+    <line class="divider" x1="0" y1="44" x2="230" y2="44"/>
+    <line class="divider" x1="0" y1="112" x2="230" y2="112"/>
+    <text class="title" x="115" y="30" text-anchor="middle">PioUser</text>
+    <text class="small-attribute" x="14" y="72">- table : pio_user</text>
+    <text class="small-attribute" x="14" y="96">- scope : incidents, alerts</text>
+  </g>
+
+  <g id="superadmin-user" transform="translate(1600 740)">
+    <rect class="class-box" x="0" y="0" width="250" height="140"/>
+    <line class="divider" x1="0" y1="44" x2="250" y2="44"/>
+    <line class="divider" x1="0" y1="112" x2="250" y2="112"/>
+    <text class="title" x="125" y="30" text-anchor="middle">SuperAdminUser</text>
+    <text class="small-attribute" x="14" y="72">- table : superadmin_user</text>
+    <text class="small-attribute" x="14" y="96">- scope : staff accounts</text>
+  </g>
+
+  <!-- Report model -->
+  <g id="report" transform="translate(650 940)">
+    <rect class="class-box" x="0" y="0" width="600" height="220"/>
+    <line class="divider" x1="0" y1="48" x2="600" y2="48"/>
+    <line class="divider" x1="0" y1="188" x2="600" y2="188"/>
+    <text class="abstract-title" x="300" y="32" text-anchor="middle">Report {abstract}</text>
+    <text class="attribute" x="20" y="82">- id : int</text>
+    <text class="attribute" x="20" y="106">- trackingNumber : string?</text>
+    <text class="attribute" x="20" y="130">- category : string</text>
+    <text class="attribute" x="20" y="154">- status : {PENDING, IN_PROGRESS, RESOLVED, TRANSFERRED}</text>
+    <text class="attribute" x="20" y="178">- evidencePath / evidenceMime : file reference?</text>
+  </g>
+
+  <g id="complaint" transform="translate(60 1240)">
+    <rect class="class-box" x="0" y="0" width="540" height="360"/>
+    <line class="divider" x1="0" y1="48" x2="540" y2="48"/>
+    <line class="divider" x1="0" y1="328" x2="540" y2="328"/>
+    <text class="title" x="270" y="32" text-anchor="middle">Complaint</text>
+    <text class="attribute" x="20" y="82">- residentId : int</text>
+    <text class="attribute" x="20" y="106">- caseNumber : string?</text>
+    <text class="attribute" x="20" y="130">- complaintTitle : string</text>
+    <text class="attribute" x="20" y="154">- complaintType : string?</text>
+    <text class="attribute" x="20" y="178">- complaintCategory : string</text>
+    <text class="attribute" x="20" y="202">- respondentName : string?</text>
+    <text class="attribute" x="20" y="226">- respondentAddress : string?</text>
+    <text class="attribute" x="20" y="250">- description : text</text>
+    <text class="attribute" x="20" y="274">- incidentDate / incidentTime : date-time?</text>
+    <text class="attribute" x="20" y="298">- assignedRole : {secretary, captain}?</text>
+  </g>
+
+  <g id="hearing-schedule" transform="translate(680 1300)">
+    <rect class="class-box" x="0" y="0" width="540" height="330"/>
+    <line class="divider" x1="0" y1="48" x2="540" y2="48"/>
+    <line class="divider" x1="0" y1="298" x2="540" y2="298"/>
+    <text class="title" x="270" y="32" text-anchor="middle">HearingSchedule</text>
+    <text class="attribute" x="20" y="82">- id : int</text>
+    <text class="attribute" x="20" y="106">- complaintId : int</text>
+    <text class="attribute" x="20" y="130">- scheduledDate : date</text>
+    <text class="attribute" x="20" y="154">- scheduledTime : time</text>
+    <text class="attribute" x="20" y="178">- location : string</text>
+    <text class="attribute" x="20" y="202">- notes : text?</text>
+    <text class="attribute" x="20" y="226">- status : string</text>
+    <text class="attribute" x="20" y="250">- resolutionType / method : string?</text>
+    <text class="attribute" x="20" y="274">- resolutionNotes / resolvedAt : text, datetime?</text>
+  </g>
+
+  <g id="incident-report" transform="translate(1300 1240)">
+    <rect class="class-box" x="0" y="0" width="540" height="340"/>
+    <line class="divider" x1="0" y1="48" x2="540" y2="48"/>
+    <line class="divider" x1="0" y1="308" x2="540" y2="308"/>
+    <text class="title" x="270" y="32" text-anchor="middle">IncidentReport</text>
+    <text class="attribute" x="20" y="82">- residentId : int?</text>
+    <text class="attribute" x="20" y="106">- incidentType : string</text>
+    <text class="attribute" x="20" y="130">- incidentCategory : string</text>
+    <text class="attribute" x="20" y="154">- sitio : string</text>
+    <text class="attribute" x="20" y="178">- description : text</text>
+    <text class="attribute" x="20" y="202">- witness : string?</text>
+    <text class="attribute" x="20" y="226">- status : string</text>
+    <text class="attribute" x="20" y="250">- resolvedAt : datetime?</text>
+    <text class="attribute" x="20" y="274">- transferredAt : datetime?</text>
+  </g>
+
+  <g id="emergency-incident" transform="translate(1325 1605)">
+    <rect class="class-box" x="0" y="0" width="490" height="155"/>
+    <line class="divider" x1="0" y1="48" x2="490" y2="48"/>
+    <line class="divider" x1="0" y1="123" x2="490" y2="123"/>
+    <text class="title" x="245" y="32" text-anchor="middle">EmergencyIncident</text>
+    <text class="attribute" x="20" y="82">- reporterName : string</text>
+    <text class="attribute" x="20" y="106">- contactNumber : string</text>
+    <text class="attribute" x="20" y="130">- trackingPrefix : EMG</text>
+  </g>
+
+  <!-- Support model -->
+  <g id="notification" transform="translate(60 1780)">
+    <rect class="class-box" x="0" y="0" width="410" height="240"/>
+    <line class="divider" x1="0" y1="48" x2="410" y2="48"/>
+    <line class="divider" x1="0" y1="208" x2="410" y2="208"/>
+    <text class="title" x="205" y="32" text-anchor="middle">Notification</text>
+    <text class="small-attribute" x="16" y="78">- id : int</text>
+    <text class="small-attribute" x="16" y="100">- userId : int</text>
+    <text class="small-attribute" x="16" y="122">- userRole : string</text>
+    <text class="small-attribute" x="16" y="144">- title / message : string, text</text>
+    <text class="small-attribute" x="16" y="166">- type : complaint | incident | hearing | system</text>
+    <text class="small-attribute" x="16" y="188">- referenceId / isRead / createdAt</text>
+  </g>
+
+  <g id="uploaded-file" transform="translate(530 1780)">
+    <rect class="class-box" x="0" y="0" width="410" height="240"/>
+    <line class="divider" x1="0" y1="48" x2="410" y2="48"/>
+    <line class="divider" x1="0" y1="208" x2="410" y2="208"/>
+    <text class="title" x="205" y="32" text-anchor="middle">UploadedFile</text>
+    <text class="small-attribute" x="16" y="78">- id : bigint</text>
+    <text class="small-attribute" x="16" y="100">- storageKey : string</text>
+    <text class="small-attribute" x="16" y="122">- contentType : string</text>
+    <text class="small-attribute" x="16" y="144">- fileSize : bigint</text>
+    <text class="small-attribute" x="16" y="166">- data : blob</text>
+    <text class="small-attribute" x="16" y="188">- createdAt / updatedAt : datetime</text>
+  </g>
+
+  <g id="otp-record" transform="translate(1000 1780)">
+    <rect class="class-box" x="0" y="0" width="410" height="240"/>
+    <line class="divider" x1="0" y1="48" x2="410" y2="48"/>
+    <line class="divider" x1="0" y1="208" x2="410" y2="208"/>
+    <text class="title" x="205" y="32" text-anchor="middle">OtpRecord</text>
+    <text class="small-attribute" x="16" y="78">- email : string</text>
+    <text class="small-attribute" x="16" y="100">- purpose : emailVerification | passwordReset</text>
+    <text class="small-attribute" x="16" y="122">- otpHash : string</text>
+    <text class="small-attribute" x="16" y="144">- expiresAt : datetime</text>
+    <text class="small-attribute" x="16" y="166">- attempts : int</text>
+    <text class="small-attribute" x="16" y="188">- createdAt : datetime</text>
+  </g>
+
+  <g id="incident-view" transform="translate(1450 1780)">
+    <rect class="class-box" x="0" y="0" width="410" height="240"/>
+    <line class="divider" x1="0" y1="48" x2="410" y2="48"/>
+    <line class="divider" x1="0" y1="208" x2="410" y2="208"/>
+    <text class="title" x="205" y="32" text-anchor="middle">IncidentView</text>
+    <text class="small-attribute" x="16" y="78">- id : int</text>
+    <text class="small-attribute" x="16" y="100">- incidentId : int</text>
+    <text class="small-attribute" x="16" y="122">- userId : int</text>
+    <text class="small-attribute" x="16" y="144">- userRole : chief | pio | captain | secretary</text>
+    <text class="small-attribute" x="16" y="166">- viewedAt : datetime</text>
+  </g>
+
+  <!-- Generalization relationships -->
+  <path class="rel" d="M310 380 V330 H950"/>
+  <path class="rel" d="M950 380 V330"/>
+  <path class="rel" d="M950 330 V250" marker-end="url(#generalization)"/>
+
+  <path class="rel" d="M725 740 V690 H950"/>
+  <path class="rel" d="M975 740 V690 H950"/>
+  <path class="rel" d="M1225 740 V690 H950"/>
+  <path class="rel" d="M1475 740 V690 H950"/>
+  <path class="rel" d="M1725 740 V690 H950"/>
+  <path class="rel" d="M950 690 V610" marker-end="url(#generalization)"/>
+
+  <path class="rel" d="M330 1240 V1200 H950"/>
+  <path class="rel" d="M1570 1240 V1200 H950"/>
+  <path class="rel" d="M950 1200 V1160" marker-end="url(#generalization)"/>
+  <path class="rel" d="M1570 1605 V1580" marker-end="url(#generalization)"/>
+
+  <!-- Association relationships -->
+  <path class="rel" d="M300 700 V1240"/>
+  <text class="label" x="235" y="960" text-anchor="middle">files</text>
+  <text class="label" x="276" y="724">1</text>
+  <text class="label" x="310" y="1228">0..*</text>
+
+  <path class="rel" d="M430 700 V910 H1570 V1240"/>
+  <text class="label" x="1000" y="900" text-anchor="middle">submits</text>
+  <text class="label" x="442" y="724">0..1</text>
+  <text class="label" x="1584" y="1228">0..*</text>
+
+  <path class="rel" d="M950 610 V930"/>
+  <text class="label" x="1018" y="905" text-anchor="start">manages / reviews</text>
+  <text class="label" x="966" y="636">0..*</text>
+  <text class="label" x="966" y="928">0..*</text>
+
+  <path class="rel" d="M600 1420 H680"/>
+  <text class="label" x="640" y="1410" text-anchor="middle">has</text>
+  <text class="label" x="612" y="1444">1</text>
+  <text class="label" x="644" y="1444">0..*</text>
+
+  <path class="dash" d="M1300 1285 C1120 1195 780 1195 600 1285"/>
+  <text class="label" x="950" y="1228" text-anchor="middle">transfers into</text>
+
+  <path class="rel" d="M650 160 H30 V1780 H60"/>
+  <text class="label" x="78" y="1748">receives</text>
+  <text class="label" x="42" y="1768">1</text>
+  <text class="label" x="66" y="1772">0..*</text>
+
+  <path class="rel" d="M1250 160 H1880 V1780 H1410"/>
+  <text class="label" x="1600" y="148" text-anchor="middle">verifies / resets</text>
+  <text class="label" x="1262" y="184">1</text>
+  <text class="label" x="1418" y="1772">0..*</text>
+
+  <path class="rel" d="M950 1160 V1780"/>
+  <text class="label" x="890" y="1728" text-anchor="middle">evidence files</text>
+  <text class="label" x="910" y="1178">0..*</text>
+  <text class="label" x="904" y="1772">0..1</text>
+
+  <path class="rel" d="M560 545 H610 V1780 H530"/>
+  <text class="label" x="610" y="560">ID / profile files</text>
+
+  <path class="rel" d="M1840 1410 H1880 V1780 H1860"/>
+  <text class="label" x="1825" y="1736" text-anchor="middle">viewed by</text>
+  <text class="label" x="1848" y="1432">1</text>
+  <text class="label" x="1812" y="1772">0..*</text>
+
+  <path class="rel" d="M1200 520 H1875 V1780 H1860"/>
+  <text class="label" x="1480" y="510" text-anchor="middle">records staff views</text>
+
+  <path class="dash" d="M470 1840 H530"/>
+  <text class="label" x="500" y="1830" text-anchor="middle">references</text>
+
+  <!-- Diagram notes -->
+  <g id="notes" transform="translate(60 920)">
+    <rect class="class-box" x="0" y="0" width="520" height="130"/>
+    <text class="note-title" x="20" y="34">Notes</text>
+    <text class="note-text" x="20" y="66">- Staff roles use separate tables in the PHP API.</text>
+    <text class="note-text" x="20" y="90">- Emergency reports are stored in incidents with EMG tracking.</text>
+    <text class="note-text" x="20" y="114">- Uploaded files may be stored in DB, local disk, or Spaces.</text>
+  </g>
+</svg>
